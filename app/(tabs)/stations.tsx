@@ -85,17 +85,27 @@ export default function StationsScreen() {
       const loc = await requestLocation();
       const { latitude, longitude } = loc.coords;
 
-      // Call Edge Function for Google Places
-      const { data, error: funcError } = await supabase.functions.invoke('nearby-stations', {
-        body: { latitude, longitude, radius: 5000 },
+      // Call new stations Edge Function
+      const { data, error: funcError } = await supabase.functions.invoke('stations', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
       });
 
-      // If edge function not deployed, use mock data
+      // Fall back to nearby-stations or mock data
       if (funcError) {
-        console.log('Edge function not available, using mock data');
-        setStations(getMockStations(latitude, longitude));
+        const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('nearby-stations', {
+          body: { latitude, longitude, radius: 5000 },
+        });
+
+        if (!nearbyError && nearbyData?.stations) {
+          setStations(nearbyData.stations);
+        } else {
+          setStations(getMockStations(latitude, longitude));
+        }
+      } else if (data?.data?.stations) {
+        setStations(data.data.stations);
       } else {
-        setStations(data.stations || []);
+        setStations(getMockStations(latitude, longitude));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load stations');
@@ -305,9 +315,19 @@ export default function StationsScreen() {
       )}
 
       {/* Disclaimer */}
-      <Text style={[styles.disclaimer, { color: colors.textTertiary }]}>
-        Station data may not reflect real-time availability. Always confirm operating hours.
-      </Text>
+      <Card style={styles.disclaimerCard}>
+        <View style={styles.disclaimerContent}>
+          <Clock size={20} color={colors.warning} />
+          <View style={styles.disclaimerText}>
+            <Text style={[styles.disclaimerTitle, { color: colors.text }]}>
+              Data Notice
+            </Text>
+            <Text style={[styles.disclaimerMessage, { color: colors.textSecondary }]}>
+              Station data may not reflect real-time availability. Operating hours, prices, and fuel availability are subject to change. Always confirm directly with the station before visiting.
+            </Text>
+          </View>
+        </View>
+      </Card>
     </ScrollView>
   );
 }
@@ -425,10 +445,24 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
   },
-  disclaimer: {
+  disclaimerCard: {
+    marginBottom: Spacing.lg,
+  },
+  disclaimerContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  disclaimerText: {
+    flex: 1,
+    marginLeft: Spacing.md,
+  },
+  disclaimerTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
+    marginBottom: Spacing.xs,
+  },
+  disclaimerMessage: {
     fontSize: FontSizes.xs,
-    textAlign: 'center',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xl,
+    lineHeight: 18,
   },
 });

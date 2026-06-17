@@ -56,7 +56,33 @@ export default function PricesScreen() {
     try {
       setError(null);
 
-      // Get current prices for selected region
+      // Try API endpoint first
+      const { data: apiData, error: apiError } = await supabase.functions.invoke('fuel-prices', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!apiError && apiData?.success && apiData?.data?.prices) {
+        // Use API data if available
+        const priceData = Array.isArray(apiData.data.prices)
+          ? apiData.data.prices.find((p: FuelPrice) => p.region === selectedRegion)
+          : apiData.data.prices;
+
+        if (priceData) {
+          // Get history from API if provided
+          let previousMonth: { [key: string]: number } = {};
+          if (apiData.data.history) {
+            apiData.data.history.forEach((h: FuelHistory) => {
+              previousMonth[h.fuel_key] = h.price_cents;
+            });
+          }
+
+          setData({ current: priceData, previousMonth });
+          return;
+        }
+      }
+
+      // Fallback to direct database query
       const { data: current, error: currentError } = await supabase
         .from('fuel_prices')
         .select('*')
