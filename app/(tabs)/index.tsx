@@ -49,28 +49,31 @@ export default function HomeScreen() {
   const [selectedRegion] = useState('Gauteng Inland');
 
   const fetchData = useCallback(async () => {
-    try {
-      setError(null);
+  try {
+    setError(null);
 
-      // Fetch current fuel prices (public)
-      const { data: prices, error: pricesError } = await supabase
-        .from('fuel_prices')
-        .select('*')
-        .eq('region', selectedRegion)
-        .eq('is_current', true)
-        .maybeSingle();
+    if (!supabase) {
+      throw new Error('Supabase client is not initialized — check your environment variables');
+    }
 
-      if (pricesError) throw pricesError;
+    // Fetch current fuel prices (public)
+    const { data: prices, error: pricesError } = await supabase
+      .from('fuel_prices')
+      .select('*')
+      .eq('region', selectedRegion)
+      .eq('is_current', true)
+      .maybeSingle();
 
-      let userVehicles: UserVehicleWithVehicle[] = [];
-      let lastFillUp = null;
-      let lastKmPerL: number | null = null;
-      let benchmarkInfo = null;
+    if (pricesError) throw pricesError;
 
-      if (user) {
-        // Fetch user vehicles
-        const { data: vehicles, error: vehiclesError } = await supabase
-          .from('user_vehicles')
+    let userVehicles: UserVehicleWithVehicle[] = [];
+    let lastFillUp = null;
+    let lastKmPerL: number | null = null;
+    let benchmarkInfo = null;
+
+    if (user) {
+      const { data: vehicles, error: vehiclesError } = await supabase
+        .from('user_vehicles')
           .select('*, vehicle:vehicles(*)')
           .eq('user_id', user.id)
           .order('is_default', { ascending: false });

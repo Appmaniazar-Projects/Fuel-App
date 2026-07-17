@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useFocusEffect, Stack } from 'expo-router';
 import { TrendingUp } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
+import * as fillupApi from '@/lib/fillupApi';
 import { Card } from '@/components/Card';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
@@ -35,6 +36,17 @@ export default function PriceHistoryScreen() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
+
+      try {
+        const apiData = await fillupApi.getHistory({ fuel_key: selectedFuel });
+        if (apiData?.success && apiData?.data?.records) {
+          // Map records to expected FuelHistory shape if necessary
+          setHistory(apiData.data.records || []);
+          return;
+        }
+      } catch (err) {
+        // fall back to Supabase local DB query
+      }
 
       const { data, error: fetchError } = await supabase
         .from('fuel_history')

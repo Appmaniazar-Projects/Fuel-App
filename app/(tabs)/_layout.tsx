@@ -6,7 +6,8 @@ import { Colors, Spacing, FontWeights } from '@/lib/theme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const schemeKey: 'light' | 'dark' = colorScheme === 'dark' ? 'dark' : 'light';
+  const colors = Colors[schemeKey];
 
   return (
     <Tabs

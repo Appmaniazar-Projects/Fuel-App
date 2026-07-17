@@ -10,6 +10,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { TrendingUp, TrendingDown, Minus, ChevronRight, ExternalLink } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
+import * as fillupApi from '@/lib/fillupApi';
 import { Card } from '@/components/Card';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
@@ -22,7 +23,8 @@ import {
   formatPrice,
   formatPriceChange,
 } from '@/lib/theme';
-import type { FuelPrice, FuelHistory } from '@/types/database';
+import type { FuelPrice } from '@/types/database';
+
 
 const REGIONS = [
   { key: 'Gauteng Inland', label: 'Gauteng (Inland)' },
@@ -54,32 +56,38 @@ export default function PricesScreen() {
 
   const fetchData = useCallback(async () => {
     try {
+     setLoading(true);
       setError(null);
 
-      // Try API endpoint first
-      const { data: apiData, error: apiError } = await supabase.functions.invoke('fuel-prices', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // Try FillUp API backend first
+      try {
+        const regionParam = selectedRegion.toLowerCase().includes('coastal') ? 'coastal' : 'inland';
+        const apiData = await fillupApi.getCurrent({ region: regionParam });
 
-      if (!apiError && apiData?.success && apiData?.data?.prices) {
-        // Use API data if available
-        const priceData = Array.isArray(apiData.data.prices)
-          ? apiData.data.prices.find((p: FuelPrice) => p.region === selectedRegion)
-          : apiData.data.prices;
+        if (apiData?.success && apiData?.data) {
+          const fuels = apiData.data.fuels || [];
 
-        if (priceData) {
-          // Get history from API if provided
+          const currentObj: any = {
+            effective_date: apiData.data.effective_date,
+            data_source: apiData.data.data_source || 'DMRE',
+          };
+
+          fuels.forEach((f: any) => {
+            currentObj[f.key] = f.price_cents ?? f.price ?? null;
+          });
+
           let previousMonth: { [key: string]: number } = {};
           if (apiData.data.history) {
-            apiData.data.history.forEach((h: FuelHistory) => {
-              previousMonth[h.fuel_key] = h.price_cents;
+            apiData.data.history.forEach((h: any) => {
+              previousMonth[h.fuel_key] = h.price_cents ?? h.price ?? null;
             });
           }
 
-          setData({ current: priceData, previousMonth });
+          setData({ current: currentObj, previousMonth });
           return;
         }
+      } catch (err) {
+        // ignore and fall back to supabase/local DB
       }
 
       // Fallback to direct database query
@@ -138,9 +146,13 @@ export default function PricesScreen() {
     return <ErrorState message={error} onRetry={fetchData} />;
   }
 
-  const getPrice = (dbKey: string, priceData: FuelPrice): number => {
-    return priceData[dbKey as keyof FuelPrice] as number || 0;
-  };
+  if (!data?.current) {                         // <-- add this guard
+  return <ErrorState message="No pricing data available" onRetry={fetchData} />;
+}
+
+ const getPrice = (dbKey: string, priceData?: FuelPrice | null): number => {
+  return (priceData?.[dbKey as keyof FuelPrice] as number) ?? 0;
+};
 
   const getChange = (fuelKey: string, currentPrice: number): { change: number; direction: 'up' | 'down' | 'same' } => {
     const previous = data?.previousMonth[fuelKey];

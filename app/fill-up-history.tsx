@@ -129,7 +129,7 @@ export default function FillUpHistoryScreen() {
       const grouped: GroupedFillUps[] = Object.entries(groups).map(([month, fillUps]) => ({
         month,
         fillUps,
-        totalSpend: fillUps.reduce((sum, f) => sum + (f.litres * f.price_cents_per_litre / 100), 0),
+        totalSpend: fillUps.reduce((sum, f) => sum + (f.litres * ((f.price_cents_per_litre ?? 0) / 100)), 0),
       }));
 
       setGroupedFillUps(grouped);
@@ -188,7 +188,7 @@ export default function FillUpHistoryScreen() {
             </View>
 
             {group.fillUps.map((fillUp) => {
-              const fullCost = fillUp.litres * fillUp.price_cents_per_litre / 100;
+              const fullCost = fillUp.litres * ((fillUp.price_cents_per_litre ?? 0) / 100);
 
               return (
                 <Card key={fillUp.id} style={styles.fillUpCard}>
@@ -214,7 +214,7 @@ export default function FillUpHistoryScreen() {
 
                       <View style={styles.fillUpMeta}>
                         <Text style={[styles.fillUpPrice, { color: colors.textTertiary }]}>
-                          {formatPrice(fillUp.price_cents_per_litre)}/L
+                          {formatPrice(fillUp.price_cents_per_litre ?? 0)}/L
                         </Text>
                         {fillUp.odometer_km && (
                           <>

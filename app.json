@@ -33,7 +33,9 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow FuelWise to use your location to find nearby fuel stations."
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true

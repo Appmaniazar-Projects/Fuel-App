@@ -1,4 +1,4 @@
-import { useColorScheme } from 'react-native';
+import { useColorScheme, ColorSchemeName } from 'react-native';
 
 export const Colors = {
   light: {
@@ -87,13 +87,15 @@ export type ColorScheme = typeof Colors.light;
 
 export function useThemeColor() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const schemeKey: 'light' | 'dark' = colorScheme === 'dark' ? 'dark' : 'light';
+  const colors = Colors[schemeKey];
   return colors;
 }
 
 export function useColors() {
   const colorScheme = useColorScheme();
-  return Colors[colorScheme ?? 'light'];
+  const schemeKey: 'light' | 'dark' = colorScheme === 'dark' ? 'dark' : 'light';
+  return Colors[schemeKey];
 }
 
 export const Spacing = {
