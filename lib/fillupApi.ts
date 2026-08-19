@@ -4,7 +4,14 @@ const BASE_URL =
 const API_KEY = process.env.EXPO_PUBLIC_FILLUP_API_KEY || process.env.NEXT_PUBLIC_FILLUP_API_KEY || '';
 
 function buildUrl(path: string, params?: Record<string, any>) {
-  const url = new URL(path, BASE_URL);
+  // Build the full URL by string concatenation rather than the URL(path, base)
+  // constructor: a path starting with "/" is treated as absolute-from-origin
+  // by the URL spec, which silently discards any path segment already in
+  // BASE_URL (e.g. the "/api" in "http://localhost:3001/api") — that was
+  // causing every request to hit the wrong path.
+  const base = BASE_URL.replace(/\/+$/, '');
+  const cleanPath = path.replace(/^\/+/, '');
+  const url = new URL(`${base}/${cleanPath}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null) url.searchParams.append(k, String(v));
