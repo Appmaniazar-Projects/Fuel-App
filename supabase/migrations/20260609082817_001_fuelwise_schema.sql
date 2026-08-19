@@ -13,7 +13,7 @@ Stores current and historical fuel prices by region and effective date.
 - region: South African region (Gauteng Inland, Western Cape Coastal, KZN Coastal)
 - unleaded_93, unleaded_95: Petrol prices in cents per litre
 - leaded_93, leaded_95: Leaded petrol prices in cents per litre (legacy)
-- diesel_low_sulphur: Diesel 50ppm (0.05% sulphur) in cents per litre
+-diesel_50ppm: Diesel 50ppm (0.05% sulphur) in cents per litre
 - diesel_ultra: Diesel 500ppm (0.005% sulphur) in cents per litre
 - paraffin_retail: Illuminating paraffin in cents per litre
 - lpg: Liquefied petroleum gas in cents per litre
@@ -86,8 +86,8 @@ CREATE TABLE IF NOT EXISTS fuel_prices (
   unleaded_95 integer NOT NULL,
   leaded_93 integer DEFAULT 0,
   leaded_95 integer DEFAULT 0,
-  diesel_low_sulphur integer NOT NULL,
-  diesel_ultra integer NOT NULL,
+ diesel_50ppm integer NOT NULL,
+diesel_500ppm integer NOT NULL,
   paraffin_retail integer DEFAULT 0,
   lpg integer DEFAULT 0,
   is_current boolean NOT NULL DEFAULT false,

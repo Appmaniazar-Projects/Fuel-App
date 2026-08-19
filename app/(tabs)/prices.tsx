@@ -26,17 +26,19 @@ import {
 import type { FuelPrice } from '@/types/database';
 
 
+// KZN Coastal intentionally omitted: the live scraper only distinguishes
+// Gauteng vs Coastal, so there's no genuine independent KZN price feed.
+// Add it back only once a real KZN-specific source exists.
 const REGIONS = [
   { key: 'Gauteng Inland', label: 'Gauteng (Inland)' },
   { key: 'Western Cape Coastal', label: 'Western Cape (Coastal)' },
-  { key: 'KZN Coastal', label: 'KZN (Coastal)' },
 ];
 
 const FUEL_DISPLAY = [
   { key: 'unleaded_95', name: 'Unleaded 95 Octane', dbKey: 'unleaded_95' },
   { key: 'unleaded_93', name: 'Unleaded 93 Octane', dbKey: 'unleaded_93' },
-  { key: 'diesel_50ppm', name: 'Diesel 50ppm (0.05%)', dbKey: 'diesel_low_sulphur' },
-  { key: 'diesel_500ppm', name: 'Diesel 500ppm (0.005%)', dbKey: 'diesel_ultra' },
+  { key: 'diesel_50ppm', name: 'Diesel 50ppm (0.05%)', dbKey: 'diesel_50ppm' },
+  { key: 'diesel_500ppm', name: 'Diesel 500ppm (0.005%)', dbKey: 'diesel_500ppm' },
 ];
 
 interface PriceData {
@@ -76,12 +78,12 @@ export default function PricesScreen() {
             currentObj[f.key] = f.price_cents ?? f.price ?? null;
           });
 
+          // The API already computes prev/change/direction per fuel — read
+          // that directly rather than a `history` field the API never returns.
           let previousMonth: { [key: string]: number } = {};
-          if (apiData.data.history) {
-            apiData.data.history.forEach((h: any) => {
-              previousMonth[h.fuel_key] = h.price_cents ?? h.price ?? null;
-            });
-          }
+          fuels.forEach((f: any) => {
+            if (typeof f.prev === 'number') previousMonth[f.key] = f.prev;
+          });
 
           setData({ current: currentObj, previousMonth });
           return;

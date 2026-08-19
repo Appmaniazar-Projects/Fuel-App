@@ -24,8 +24,8 @@ export interface FuelPrice {
   unleaded_95: number;
   leaded_93: number | null;
   leaded_95: number | null;
-  diesel_low_sulphur: number;
-  diesel_ultra: number;
+ diesel_50ppm: number;
+diesel_500ppm: number;
   paraffin_retail: number | null;
   paraffin_wholesale: number | null;
   lpg: number | null;
