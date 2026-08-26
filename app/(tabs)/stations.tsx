@@ -85,25 +85,14 @@ export default function StationsScreen() {
       const loc = await requestLocation();
       const { latitude, longitude } = loc.coords;
 
-      // Call new stations Edge Function
-      const { data, error: funcError } = await supabase.functions.invoke('stations', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+      // Use the location-aware function first. The legacy `stations` function
+      // defaults to Johannesburg when it is called without coordinates.
+      const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('nearby-stations', {
+        body: { latitude, longitude, radius: 5000 },
       });
 
-      // Fall back to nearby-stations or mock data
-      if (funcError) {
-        const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('nearby-stations', {
-          body: { latitude, longitude, radius: 5000 },
-        });
-
-        if (!nearbyError && nearbyData?.stations) {
-          setStations(nearbyData.stations);
-        } else {
-          setStations(getMockStations(latitude, longitude));
-        }
-      } else if (data?.data?.stations) {
-        setStations(data.data.stations);
+      if (!nearbyError && nearbyData?.stations) {
+        setStations(nearbyData.stations);
       } else {
         setStations(getMockStations(latitude, longitude));
       }
@@ -165,17 +154,14 @@ export default function StationsScreen() {
   const sortedStations = [...filteredStations].sort((a, b) => a.distance - b.distance);
 
   const openNavigation = (station: Station) => {
-    const scheme = Platform.select({
-      ios: 'maps://',
-      android: 'geo:',
+    const destination = `${station.latitude},${station.longitude}`;
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+    const nativeMapsUrl = Platform.select({
+      ios: `maps://?daddr=${destination}`,
+      android: `geo:0,0?q=${destination}(${encodeURIComponent(station.name)})`,
     });
-    const url = Platform.select({
-      ios: `maps://?daddr=${station.latitude},${station.longitude}`,
-      android: `geo:0,0?q=${station.latitude},${station.longitude}(${encodeURIComponent(station.name)})`,
-    });
-    if (url) {
-      Linking.openURL(url);
-    }
+
+    Linking.openURL(nativeMapsUrl || googleMapsUrl).catch(() => Linking.openURL(googleMapsUrl));
   };
 
   if (loading) {
