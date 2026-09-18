@@ -250,7 +250,7 @@ export default function HomeScreen() {
               Diesel 50ppm
             </Text>
             <Text style={[styles.priceValue, { color: colors.text }]}>
-              {data?.fuelPrices ? formatPrice(data.fuelPrices.diesel_low_sulphur) : '--'}
+              {data?.fuelPrices ? formatPrice(data.fuelPrices.diesel_50ppm) : '--'}
             </Text>
           </View>
         </View>

@@ -20,7 +20,7 @@ $env:EXPO_PUBLIC_FILLUP_API_URL = 'http://localhost:3001/api'
 # For Expo: create a .env or use Expo dev configuration to pass the vars.
 ```
 
-   - Start the app: `npm start` or `expo start`
+   - Start the app: `npx expo start`
 
 Security notes
  - For production, do NOT expose secret API keys in public env vars. Use server-side secrets (Vercel, Supabase functions, etc.).
