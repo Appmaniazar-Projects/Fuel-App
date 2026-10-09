@@ -141,7 +141,7 @@ export default function FillUpScreen() {
       : selectedFuel === 'unleaded_93'
         ? fuelPrices.unleaded_93
         : selectedFuel === 'diesel_50ppm'
-          ? fuelPrices.diesel_low_sulphur
+          ? fuelPrices.diesel_50ppm
           : fuelPrices.diesel_ultra
     : 0;
 
@@ -191,7 +191,7 @@ export default function FillUpScreen() {
     switch (key) {
       case 'unleaded_95': return fuelPrices.unleaded_95;
       case 'unleaded_93': return fuelPrices.unleaded_93;
-      case 'diesel_50ppm': return fuelPrices.diesel_low_sulphur;
+      case 'diesel_50ppm': return fuelPrices.diesel_50ppm;
       case 'diesel_500ppm': return fuelPrices.diesel_ultra;
       default: return 0;
     }

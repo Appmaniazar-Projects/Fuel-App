@@ -30,8 +30,8 @@ import type { FuelPrice } from '@/types/database';
 // Gauteng vs Coastal, so there's no genuine independent KZN price feed.
 // Add it back only once a real KZN-specific source exists.
 const REGIONS = [
-  { key: 'Gauteng Inland', label: 'Gauteng (Inland)' },
-  { key: 'Western Cape Coastal', label: 'Western Cape (Coastal)' },
+  { key: 'Gauteng (Inland)', label: 'Gauteng (Inland)' },
+  { key: 'Western Cape (Coastal)', label: 'Western Cape (Coastal)' },
 ];
 
 const FUEL_DISPLAY = [
