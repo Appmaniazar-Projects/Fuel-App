@@ -16,7 +16,6 @@ import * as Location from 'expo-location';
 import { MapPin, Navigation2, Clock, Fuel, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { Card } from '@/components/Card';
 import { LoadingState } from '@/components/LoadingState';
-import { ErrorState } from '@/components/ErrorState';
 import { StationsMap } from '@/components/StationsMap';
 import { fetchNearbyStations, BRANDS, type Station } from '@/lib/stations';
 import { regionForLocation, REGION_LABEL, type PriceRegion } from '@/lib/regions';
@@ -143,9 +142,6 @@ export default function StationsScreen() {
     return <LoadingState message="Finding nearby stations..." />;
   }
 
-  if (error && stations.length === 0) {
-    return <ErrorState message={error} onRetry={() => fetchAll(true)} />;
-  }
 
   const shownStations = showAll ? visibleStations : visibleStations.slice(0, 5);
 
@@ -235,7 +231,17 @@ export default function StationsScreen() {
         </ScrollView>
       )}
 
-      {stationsLoading ? null : visibleStations.length === 0 ? (
+      {!stationsLoading && error && stations.length === 0 ? (
+        <Card style={styles.emptyCard}>
+          <View style={styles.emptyContent}>
+            <MapPin size={40} color={colors.textTertiary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{error}</Text>
+            <Pressable onPress={() => { setStationsLoading(true); fetchAll(true); }} style={[styles.viewMore, { borderColor: colors.border, paddingHorizontal: Spacing.lg }]}>
+              <Text style={[styles.viewMoreText, { color: colors.primary }]}>Try again</Text>
+            </Pressable>
+          </View>
+        </Card>
+      ) : stationsLoading ? null : visibleStations.length === 0 ? (
         <Card style={styles.emptyCard}>
           <View style={styles.emptyContent}>
             <MapPin size={48} color={colors.textTertiary} />
@@ -355,6 +361,8 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FontSizes.md,
     marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
   },
   stationList: {
     marginBottom: Spacing.lg,
