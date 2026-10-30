@@ -92,6 +92,14 @@ export default function GarageScreen() {
     );
     if (!confirmed) return;
 
+    // The live database doesn't cascade this delete, so remove the
+    // vehicle's fill-ups first or the vehicle delete is rejected.
+    const { error: fillUpsError } = await supabase.from('fill_ups').delete().eq('user_vehicle_id', uv.id);
+    if (fillUpsError) {
+      showError(fillUpsError.message || 'Could not delete this vehicle\'s fill-ups.');
+      return;
+    }
+
     const { error: deleteError } = await supabase.from('user_vehicles').delete().eq('id', uv.id);
     if (deleteError) {
       showError(deleteError.message || 'Could not delete the vehicle.');

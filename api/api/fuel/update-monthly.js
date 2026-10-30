@@ -26,6 +26,9 @@ const REGIONS = ["gauteng", "coastal"];
 // fuel_history has no region column and the seeded history is Gauteng
 // Inland, so only that region's prices go into history.
 const HISTORY_REGION = "Gauteng Inland";
+// fuel_history.fuel_key must exist in the fuel_types table, and these are
+// the fuels the app's price-history chart shows.
+const HISTORY_KEYS = ["unleaded_93", "unleaded_95", "diesel_50ppm", "diesel_500ppm"];
 
 module.exports = withAuth(async (req, res) => {
   const results = [];
@@ -52,7 +55,7 @@ module.exports = withAuth(async (req, res) => {
       if (snapshot.region === HISTORY_REGION) {
         const month = `${snapshot.effective_date.slice(0, 7)}-01`;
         const historyRows = Object.entries(snapshot.prices)
-          .filter(([fuel_key]) => fuel_key !== "paraffin_wholesale" && fuel_key !== "lpg")
+          .filter(([fuel_key]) => HISTORY_KEYS.includes(fuel_key))
           .map(([fuel_key, price_cents]) => ({ month, fuel_key, price_cents }));
         historySaved = await FuelPriceDB.replaceHistoryForMonth(month, historyRows);
       }
