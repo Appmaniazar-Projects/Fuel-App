@@ -3,14 +3,14 @@ Integration notes — connecting `fuelwise` frontend to `fillup-api` backend
 Quickstart (local development)
 
 1. Start the FillUp API backend
-   - Open a terminal in `c:/Users/tiffy/Downloads/fillup-api/fillup-api`
+   - Open a terminal in `api/`
    - Install deps: `npm install`
    - For development without API keys, set: `FILLUP_DEV_MODE=true`
    - Run the server: `node server.js`
    - The API will be available at `http://localhost:3001/api`
 
 2. Start the Fuelwise frontend
-   - Open a terminal in `c:/Users/tiffy/Documents/GitHub/fuelwise`
+   - Open a terminal in `mobile/`
    - Install deps: `npm install`
    - Set environment variables for the frontend (example using Windows PowerShell):
 
