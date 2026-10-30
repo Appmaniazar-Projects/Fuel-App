@@ -24,7 +24,7 @@ UPDATE fuel_prices SET is_current = false WHERE is_current = true;
 -- Gauteng Inland (highest prices due to inland transport costs)
 INSERT INTO fuel_prices (
   effective_date, region, unleaded_93, unleaded_95, 
- diesel_50ppm, diesel_ultra, paraffin_retail, lpg,
+ diesel_50ppm, diesel_500ppm, paraffin_retail, lpg,
   is_current, data_source
 ) VALUES 
 ('2026-06-03', 'Gauteng Inland', 2493, 2528, 2411, 2394, 1722, 3205, true, 'DMRE'),

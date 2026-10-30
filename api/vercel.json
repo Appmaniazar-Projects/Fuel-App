@@ -13,7 +13,7 @@
   "crons": [
     {
       "path": "/api/fuel/update-monthly",
-      "schedule": "0 8 1-7 * 3",
+      "schedule": "0 8 1-8 * *",
       "timezone": "Africa/Johannesburg"
     }
   ]

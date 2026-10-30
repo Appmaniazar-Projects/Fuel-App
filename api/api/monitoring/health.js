@@ -6,7 +6,7 @@
  */
 
 const { withAuth } = require("../../lib/auth");
-const { getMonitoringStatus, triggerHealthCheck } = require("../../lib/monitoring");
+const { getMonitoringReport, monitorScraperHealth } = require("../../lib/monitoring");
 const { ok, error } = require("../../lib/respond");
 
 module.exports = withAuth(async (req, res) => {
@@ -15,11 +15,11 @@ module.exports = withAuth(async (req, res) => {
   try {
     if (action === 'check') {
       // Trigger a fresh health check
-      const result = await triggerHealthCheck();
+      const result = await monitorScraperHealth();
       return ok(res, result);
     } else {
       // Get monitoring status report
-      const report = await getMonitoringStatus();
+      const report = getMonitoringReport();
       return ok(res, report);
     }
   } catch (err) {

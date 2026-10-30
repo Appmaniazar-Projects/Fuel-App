@@ -71,7 +71,7 @@ const FuelPriceDB = {
   // current row for that region. `prices` is a flat object of fuel_key ->
   // price_cents matching the fuel_prices columns (unleaded_93, unleaded_95,
   // diesel_50ppm, diesel_500ppm, paraffin_retail, paraffin_wholesale, lpg).
-  async upsertCurrentPrices(region, prices, source) {
+  async upsertCurrentPrices(region, prices, source, effectiveDate) {
     const { error: clearError } = await supabase
       .from('fuel_prices')
       .update({ is_current: false })
@@ -87,7 +87,7 @@ const FuelPriceDB = {
       .insert({
         region,
         ...prices,
-        effective_date: new Date().toISOString().slice(0, 10),
+        effective_date: effectiveDate || new Date().toISOString().slice(0, 10),
         data_source: source,
         is_current: true,
         updated_at: new Date().toISOString(),
@@ -100,6 +100,25 @@ const FuelPriceDB = {
     }
 
     return data;
+  },
+
+  // Write one month of history, replacing any rows already stored for the
+  // same month and fuel keys so repeated runs don't create duplicates.
+  async replaceHistoryForMonth(month, records) {
+    const keys = records.map((r) => r.fuel_key);
+    if (keys.length === 0) return [];
+
+    const { error: deleteError } = await supabase
+      .from('fuel_history')
+      .delete()
+      .eq('month', month)
+      .in('fuel_key', keys);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    return this.addHistoricalData(records);
   },
 
   // Add historical data

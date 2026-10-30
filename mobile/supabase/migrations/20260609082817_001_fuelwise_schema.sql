@@ -14,7 +14,7 @@ Stores current and historical fuel prices by region and effective date.
 - unleaded_93, unleaded_95: Petrol prices in cents per litre
 - leaded_93, leaded_95: Leaded petrol prices in cents per litre (legacy)
 -diesel_50ppm: Diesel 50ppm (0.05% sulphur) in cents per litre
-- diesel_ultra: Diesel 500ppm (0.005% sulphur) in cents per litre
+- diesel_500ppm: Diesel 500ppm (0.005% sulphur) in cents per litre
 - paraffin_retail: Illuminating paraffin in cents per litre
 - lpg: Liquefied petroleum gas in cents per litre
 - is_current: Boolean flag marking the current active price set

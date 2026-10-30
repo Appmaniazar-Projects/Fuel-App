@@ -4,7 +4,7 @@
  */
 
 const cheerio = require('cheerio');
-const { scraperHealthCheck } = require('./scraper-v2');
+const { scraperHealthCheck } = require('./scraper');
 
 // ── Monitoring Configuration ─────────────────────────────────────────────
 const MONITORING_CONFIG = {

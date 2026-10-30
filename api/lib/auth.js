@@ -17,6 +17,15 @@ function validateApiKey(req) {
   // Skip auth in dev mode
   if (process.env.FILLUP_DEV_MODE === "true") return { valid: true };
 
+  // Vercel Cron Jobs can't set custom headers, but when CRON_SECRET is set
+  // in the project they send "Authorization: Bearer <CRON_SECRET>".
+  if (
+    process.env.CRON_SECRET &&
+    req.headers["authorization"] === `Bearer ${process.env.CRON_SECRET}`
+  ) {
+    return { valid: true };
+  }
+
   const key = req.headers["x-fillup-key"] || req.query.api_key;
 
   if (!key) {
