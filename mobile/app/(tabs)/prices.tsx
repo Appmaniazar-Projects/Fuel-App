@@ -11,6 +11,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { TrendingUp, TrendingDown, Minus, ChevronRight, ExternalLink } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import * as fillupApi from '@/lib/fillupApi';
+import { useHomeRegion } from '@/lib/useHomeRegion';
 import { Card } from '@/components/Card';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
@@ -51,7 +52,8 @@ export default function PricesScreen() {
   const colors = useColors();
   const router = useRouter();
 
-  const [selectedRegion, setSelectedRegion] = useState(REGIONS[0].key);
+  const { regionKey: homeRegionKey } = useHomeRegion();
+  const [selectedRegion, setSelectedRegion] = useState(homeRegionKey);
   const [data, setData] = useState<PriceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

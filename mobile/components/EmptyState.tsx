@@ -28,7 +28,7 @@ export function EmptyState({
       <Text style={[styles.title, { color: colors.text }]}>
         {title}
       </Text>
-      {message && (
+      {!!message && (
         <Text style={[styles.message, { color: colors.textSecondary }]}>
           {message}
         </Text>

@@ -8,7 +8,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
-import { Car, Plus, Star, Trash2, LogIn, LogOut } from 'lucide-react-native';
+import { Car, Plus, Star, Trash2, LogIn } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { confirmAction, showError } from '@/lib/confirm';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,7 +28,7 @@ import type { UserVehicleWithVehicle } from '@/types/database';
 
 export default function GarageScreen() {
   const colors = useColors();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
   const [vehicles, setVehicles] = useState<UserVehicleWithVehicle[]>([]);
@@ -261,16 +261,6 @@ export default function GarageScreen() {
           ))
         )}
 
-        {/* Sign Out Button */}
-        {user && (
-          <Button
-            title="Sign Out"
-            onPress={signOut}
-            variant="outline"
-            icon={<LogOut size={18} color={colors.textSecondary} />}
-            style={styles.signOutButton}
-          />
-        )}
       </ScrollView>
     </>
   );

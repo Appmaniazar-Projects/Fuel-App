@@ -9,7 +9,9 @@ import {
   Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, Droplet } from 'lucide-react-native';
+import { Mail, Lock } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BrandMark } from '@/components/BrandMark';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppInput } from '@/components/AppInput';
 import { Button } from '@/components/Button';
@@ -73,10 +75,16 @@ export default function SignUpScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        <LinearGradient
+          colors={[colors.primaryLight, 'transparent']}
+          style={styles.headerGlow}
+          pointerEvents="none"
+        />
         <View style={styles.header}>
-          <View style={[styles.logoContainer, { backgroundColor: colors.primaryLight }]}>
-            <Droplet size={48} color={colors.primary} />
+          <View style={styles.logoContainer}>
+            <BrandMark size={84} />
           </View>
+          <Text style={[styles.wordmark, { color: colors.primary }]}>FuelWise</Text>
           <Text style={[styles.title, { color: colors.text }]}>Create account</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Start tracking your fuel consumption
@@ -161,12 +169,26 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xxxl,
   },
   logoContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
+    borderRadius: 19, // matches the logo tile's corners so the shadow does too
+    shadowColor: '#0D4A8C',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  wordmark: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    letterSpacing: 0.5,
+    marginBottom: Spacing.lg,
+  },
+  headerGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 320,
   },
   title: {
     fontSize: FontSizes.xxxl,

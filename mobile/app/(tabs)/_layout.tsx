@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, Tag, MapPin, Car } from 'lucide-react-native';
+import { Home, Tag, MapPin, Car, User } from 'lucide-react-native';
 import { Colors, Spacing, FontWeights } from '@/lib/theme';
 
 export default function TabLayout() {
@@ -64,6 +64,15 @@ export default function TabLayout() {
           title: 'Garage',
           tabBarIcon: ({ focused, color }) => (
             <Car size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ focused, color }) => (
+            <User size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />

@@ -185,7 +185,7 @@ export default function AddVehicleScreen() {
                   placeholder="Search by make or model..."
                   placeholderTextColor={colors.textTertiary}
                 />
-                {searchQuery && (
+                {!!searchQuery && (
                   <Pressable onPress={() => handleSearch('')}>
                     <X size={20} color={colors.textTertiary} />
                   </Pressable>
@@ -235,13 +235,13 @@ export default function AddVehicleScreen() {
                     <Text
                       style={[styles.vehicleItemTitle, { color: colors.text }]}
                     >{`${vehicle.make} ${vehicle.model}`}</Text>
-                    {vehicle.variant && (
+                    {!!vehicle.variant && (
                       <Text style={[styles.vehicleItemVariant, { color: colors.textSecondary }]}>
                         {vehicle.variant}
                       </Text>
                     )}
                     <View style={styles.vehicleItemMeta}>
-                      {vehicle.year_from && (
+                      {!!vehicle.year_from && (
                         <>
                           <Text style={[styles.vehicleItemMetaText, { color: colors.textTertiary }]}>
                             {vehicle.year_from === vehicle.year_to || !vehicle.year_to
@@ -262,7 +262,7 @@ export default function AddVehicleScreen() {
                       <Text style={[styles.vehicleItemMetaText, { color: colors.textTertiary }]}>
                         {vehicle.transmission === 'manual' ? 'Manual' : 'Auto'}
                       </Text>
-                      {vehicle.official_km_per_l && (
+                      {!!vehicle.official_km_per_l && (
                         <>
                           <Text style={[styles.vehicleItemMetaDot, { color: colors.textTertiary }]}>
                             •
@@ -323,7 +323,7 @@ export default function AddVehicleScreen() {
                     <Text style={[styles.selectedTitle, { color: colors.text }]}>
                       {selectedVehicle.make} {selectedVehicle.model}
                     </Text>
-                    {selectedVehicle.variant && (
+                    {!!selectedVehicle.variant && (
                       <Text style={[styles.selectedVariant, { color: colors.textSecondary }]}>
                         {selectedVehicle.variant}
                       </Text>
@@ -351,7 +351,7 @@ export default function AddVehicleScreen() {
                       {selectedVehicle.transmission === 'manual' ? 'Manual' : 'Automatic'}
                     </Text>
                   </View>
-                  {selectedVehicle.official_km_per_l && (
+                  {!!selectedVehicle.official_km_per_l && (
                     <View style={styles.selectedMetaItem}>
                       <Text style={[styles.selectedMetaLabel, { color: colors.textSecondary }]}>
                         Official Consumption

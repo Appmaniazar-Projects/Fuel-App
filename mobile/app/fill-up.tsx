@@ -14,6 +14,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { X, ChevronDown, ChevronUp, Droplet, Gauge, Calculator, Car } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHomeRegion } from '@/lib/useHomeRegion';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { BenchmarkBadge } from '@/components/BenchmarkBadge';
@@ -48,7 +49,7 @@ interface FillUpScreenData {
 
 // Loads everything the fill-up screen needs. Kept outside the component so
 // state is only set once the data arrives (see applyData).
-async function fetchFillUpData(userId: string): Promise<FillUpScreenData> {
+async function fetchFillUpData(userId: string, regionKey: string): Promise<FillUpScreenData> {
   const { data: vehicleData, error: vehicleError } = await supabase
     .from('user_vehicles')
     .select('*, vehicle:vehicles(*)')
@@ -57,11 +58,11 @@ async function fetchFillUpData(userId: string): Promise<FillUpScreenData> {
   if (vehicleError) throw vehicleError;
   const vehicles = (vehicleData || []) as UserVehicleWithVehicle[];
 
-  // Fuel prices (Gauteng Inland default)
+  // Current prices for the user's home region (set on the Profile tab)
   const { data: prices, error: pricesError } = await supabase
     .from('fuel_prices')
     .select('*')
-    .eq('region', 'Gauteng Inland')
+    .eq('region', regionKey)
     .eq('is_current', true)
     .maybeSingle();
   if (pricesError) throw pricesError;
@@ -84,6 +85,7 @@ async function fetchFillUpData(userId: string): Promise<FillUpScreenData> {
 export default function FillUpScreen() {
   const colors = useColors();
   const { user } = useAuth();
+  const { regionKey } = useHomeRegion();
   const router = useRouter();
   const odometerRef = useRef<TextInput>(null);
 
@@ -129,7 +131,7 @@ export default function FillUpScreen() {
 
   const loadData = () => {
     if (!user) return;
-    fetchFillUpData(user.id)
+    fetchFillUpData(user.id, regionKey)
       .then(applyData)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
       .finally(() => setLoading(false));
@@ -138,7 +140,7 @@ export default function FillUpScreen() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, regionKey]);
 
   const retry = () => {
     setLoading(true);
@@ -292,7 +294,7 @@ export default function FillUpScreen() {
               selectTextOnFocus
             />
           </View>
-          {lastOdometer && (
+          {!!lastOdometer && (
             <Text style={[styles.hint, { color: colors.textTertiary }]}>
               Previous: {lastOdometer.toLocaleString()} km
             </Text>

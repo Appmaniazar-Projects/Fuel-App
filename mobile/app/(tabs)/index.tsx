@@ -11,7 +11,9 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Plus, History, Car, TrendingUp, MapPin, ChevronRight, Star, Fuel, LogIn } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHomeRegion } from '@/lib/useHomeRegion';
 import { Card } from '@/components/Card';
+import { BrandMark } from '@/components/BrandMark';
 import { Button } from '@/components/Button';
 import { BenchmarkBadge } from '@/components/BenchmarkBadge';
 import { LoadingState } from '@/components/LoadingState';
@@ -46,7 +48,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedRegion] = useState('Gauteng Inland');
+  const { regionKey: selectedRegion } = useHomeRegion();
 
   const fetchData = useCallback(async () => {
   try {
@@ -160,13 +162,18 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.greeting, { color: colors.text }]}>
-          {user ? `Good ${getGreeting()}` : 'FuelWise'}
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {user ? 'Track your fuel consumption' : 'South African Fuel Companion'}
-        </Text>
+      <View style={[styles.header, styles.headerRow]}>
+        <View style={styles.headerText}>
+          <Text style={[styles.greeting, { color: colors.text }]}>
+            {user ? `Good ${getGreeting()}` : 'FuelWise'}
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            {user ? 'Track your fuel consumption' : 'South African Fuel Companion'}
+          </Text>
+        </View>
+        <Pressable onPress={() => router.push('/profile')} accessibilityLabel="Profile">
+          <BrandMark size={44} />
+        </Pressable>
       </View>
 
       {/* Auth Prompt (only for non-authenticated users) */}
@@ -535,5 +542,13 @@ const styles = StyleSheet.create({
   stationsLinkSubtitle: {
     fontSize: FontSizes.sm,
     marginTop: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerText: {
+    flex: 1,
   },
 });

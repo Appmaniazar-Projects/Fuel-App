@@ -15,14 +15,18 @@
     "android": {
       "package": "za.co.fuelwise.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#185FA5"
       }
     },
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "FuelWise",
+      "shortName": "FuelWise",
+      "themeColor": "#185FA5",
+      "description": "Fuel prices, nearby stations and fill-up tracking for South African motorists."
     },
     "plugins": [
       "expo-router",
@@ -35,7 +39,20 @@
         }
       ],
       "expo-secure-store",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#185FA5",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#0D2E52"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

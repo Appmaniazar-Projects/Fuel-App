@@ -24,7 +24,7 @@ export function AppInput({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && (
+      {!!label && (
         <Text style={[styles.label, { color: colors.textSecondary }]}>
           {label}
         </Text>

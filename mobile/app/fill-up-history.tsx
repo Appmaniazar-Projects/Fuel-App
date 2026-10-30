@@ -218,7 +218,7 @@ export default function FillUpHistoryScreen() {
                         <Text style={[styles.fillUpPrice, { color: colors.textTertiary }]}>
                           {formatPrice(fillUp.price_cents_per_litre ?? 0)}/L
                         </Text>
-                        {fillUp.odometer_km && (
+                        {!!fillUp.odometer_km && (
                           <>
                             <Text style={[styles.fillUpDivider, { color: colors.textTertiary }]}>•</Text>
                             <Text style={[styles.fillUpOdo, { color: colors.textTertiary }]}>
@@ -229,7 +229,7 @@ export default function FillUpHistoryScreen() {
                       </View>
                     </View>
 
-                    {fillUp.km_per_l && (
+                    {!!fillUp.km_per_l && (
                       <View style={styles.consumptionBadge}>
                         <Text style={[styles.consumptionValue, { color: colors.text }]}>
                           {formatKmPerL(fillUp.km_per_l)}
@@ -246,7 +246,7 @@ export default function FillUpHistoryScreen() {
                     )}
                   </View>
 
-                  {fillUp.station_name && (
+                  {!!fillUp.station_name && (
                     <Text style={[styles.fillUpStation, { color: colors.textSecondary }]}>
                       {fillUp.station_name}
                     </Text>
