@@ -1,8 +1,11 @@
 {
   "name": "fillup-api",
   "version": "1.0.0",
-  "description": "FillUp API — South African Fuel Prices",
+  "description": "FillUp API \u2014 South African Fuel Prices",
   "scripts": {
+    "start": "node server.js",
+    "test": "node test/scraper.test.js && node test/monthly.test.js",
+    "scrape": "node test-scraper.js",
     "deploy": "vercel --prod"
   },
   "dependencies": {

@@ -140,6 +140,50 @@ function parseFiasaCell(text) {
   return value; // already cents, per the page's own header
 }
 
+// ── Dates ──────────────────────────────────────────────────────────────
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+function isoDate(y, m, d) {
+  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+// SA fuel prices change on the first Wednesday of each month.
+function firstWednesday(year, monthIndex) {
+  const d = new Date(Date.UTC(year, monthIndex, 1));
+  const offset = (3 - d.getUTCDay() + 7) % 7;
+  return isoDate(year, monthIndex, 1 + offset);
+}
+
+// Turns a month-column header (e.g. "1-Jul-26", "Jul 2026", "July") into an
+// ISO effective date. Falls back to the column position (1 = January) of
+// the current year when the header text can't be read.
+function parseColumnDate(label, columnIndex, now = new Date()) {
+  const text = (label || "").trim().toLowerCase();
+  const monthIndex = MONTHS.findIndex((m) => text.includes(m));
+  const year = now.getUTCFullYear();
+
+  if (monthIndex >= 0) {
+    const yearMatch = text.match(/(?:^|\D)(\d{4}|\d{2})\s*$/);
+    let y = year;
+    if (yearMatch) {
+      y = Number(yearMatch[1]);
+      if (y < 100) y += 2000;
+    }
+    const dayMatch = text.match(/^(\d{1,2})\D/);
+    return dayMatch ? isoDate(y, monthIndex, Number(dayMatch[1])) : firstWednesday(y, monthIndex);
+  }
+
+  if (columnIndex >= 1 && columnIndex <= 12) {
+    return firstWednesday(year, columnIndex - 1);
+  }
+  return null;
+}
+
+function nextRevisionAfter(effectiveDate) {
+  const [y, m] = effectiveDate.split("-").map(Number);
+  return m === 12 ? firstWednesday(y + 1, 0) : firstWednesday(y, m);
+}
+
 // ── Table parsing ────────────────────────────────────────────────────────
 // Finds current-year tables (header row's first cell reads "Products"),
 // classifies each as coastal/gauteng by whether it has a 93-octane row,
@@ -171,7 +215,9 @@ function parseFiasaTables(html) {
     const fuelDefs = REGION_FUELS[region];
 
     const prices = {};
+    const prevPrices = {};
     let latestDateLabel = null;
+    let latestColumn = -1;
 
     for (const { label, cells } of dataRows) {
       // Find which fuel key (if any) this row corresponds to.
@@ -201,15 +247,30 @@ function parseFiasaTables(html) {
       }
       prices[key] = cents;
 
-      // Track which header column this came from, to report an effective date.
-      if (currentIdx >= 0) {
-        const headerLabel = $(headerCells[currentIdx]).text().trim();
-        if (headerLabel) latestDateLabel = headerLabel;
+      // The next filled cell to the left is last month's price.
+      for (let c = currentIdx - 1; c >= 1; c--) {
+        const prevVal = parseFiasaCell($(cells[c]).text());
+        if (prevVal !== null) {
+          const prevCents = Math.round(prevVal);
+          if (isPlausible(prevCents, key)) prevPrices[key] = prevCents;
+          break;
+        }
+      }
+
+      // Track the latest month column used, to report an effective date.
+      if (currentIdx > latestColumn) {
+        latestColumn = currentIdx;
+        latestDateLabel = $(headerCells[currentIdx]).text().trim();
       }
     }
 
     if (Object.keys(prices).length > 0) {
-      results[region] = { prices, dateLabel: latestDateLabel };
+      results[region] = {
+        prices,
+        prevPrices,
+        dateLabel: latestDateLabel,
+        effectiveDate: parseColumnDate(latestDateLabel, latestColumn),
+      };
     }
   });
 
@@ -230,14 +291,15 @@ async function scrapeFIASA() {
 }
 
 // ── Build the response fuel array for a given region ───────────────────
-function buildFuelArray(region, rawPrices) {
+// rawPrices/prevPrices come from the same source (live scrape, or the
+// fallback block) so "change" never compares a live price to stale data.
+function buildFuelArray(region, rawPrices, prevPrices) {
   const fuelDefs = REGION_FUELS[region === "coastal" ? "coastal" : "gauteng"];
   const fallback = fallbackPrices(region);
-  const prevFallback = FALLBACK[region === "coastal" ? "coastal" : "gauteng"].prev;
 
   return Object.entries(fuelDefs).map(([key, meta]) => {
     const price = rawPrices[key] ?? fallback[key];
-    const prev = prevFallback[key] ?? price;
+    const prev = prevPrices[key] ?? price;
     const change = price - prev;
     return {
       key,
@@ -268,6 +330,7 @@ async function getLatestPrices(region = "inland") {
   const regionKey = normalizedRegion === "coastal" ? "Western Cape Coastal" : "Gauteng Inland";
 
   let rawPrices;
+  let prevPrices;
   let source;
   let effectiveDate = FALLBACK[normalizedRegion].effective_date;
   let nextRevision = FALLBACK[normalizedRegion].next_revision;
@@ -279,11 +342,17 @@ async function getLatestPrices(region = "inland") {
       throw new Error(`FIASA scrape returned insufficient data for ${normalizedRegion}`);
     }
     rawPrices = regionData.prices;
+    prevPrices = regionData.prevPrices || {};
     source = "fuelsindustry.org.za";
+    if (regionData.effectiveDate) {
+      effectiveDate = regionData.effectiveDate;
+      nextRevision = nextRevisionAfter(effectiveDate);
+    }
     console.log(`✅ FIASA scrape successful for ${normalizedRegion}: ${Object.keys(rawPrices).length} prices`);
   } catch (err) {
     console.warn(`FIASA scrape failed for ${normalizedRegion}, using fallback:`, err.message);
     rawPrices = fallbackPrices(normalizedRegion);
+    prevPrices = { ...FALLBACK[normalizedRegion].prev };
     source = "gazette_fallback";
   }
 
@@ -294,7 +363,7 @@ async function getLatestPrices(region = "inland") {
     region_key: regionKey,
     currency: "ZAR",
     unit: "cents_per_litre",
-    fuels: buildFuelArray(normalizedRegion, rawPrices),
+    fuels: buildFuelArray(normalizedRegion, rawPrices, prevPrices),
     macro: {
       brent_crude_usd: 69.08,
       zar_usd_rate: 16.26,
@@ -354,4 +423,6 @@ module.exports = {
   REGION_FUELS,
   FUEL_META,
   isPlausible,
+  parseFiasaTables,
+  parseColumnDate,
 };
