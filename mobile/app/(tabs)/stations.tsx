@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,101 +6,84 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
-  ActivityIndicator,
   Linking,
   Platform,
+  useColorScheme,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
-import { MapPin, Navigation2, Clock, ExternalLink } from 'lucide-react-native';
-import { supabase } from '@/lib/supabase';
+import { MapPin, Navigation2, Clock, Fuel } from 'lucide-react-native';
 import { Card } from '@/components/Card';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
+import { StationsMap } from '@/components/StationsMap';
+import { fetchNearbyStations, BRANDS, type Station } from '@/lib/stations';
+import { regionForLocation, REGION_LABEL, type PriceRegion } from '@/lib/regions';
+import { fetchCurrentPrices, type PriceMap } from '@/lib/currentPrices';
 import {
   useColors,
   Spacing,
   FontSizes,
   FontWeights,
   BorderRadius,
+  formatPrice,
 } from '@/lib/theme';
 
-const BRAND_COLORS: { [key: string]: string } = {
-  engen: '#00A651',
-  bp: '#006F3B',
-  shell: '#FBCE07',
-  sasol: '#E36F1E',
-  caltex: '#0066B3',
-  astron: '#1E3A8A',
-  total: '#FF0000',
-  other: '#6B7280',
-};
+// Johannesburg, used when location permission is denied
+const DEFAULT_LOCATION = { latitude: -26.2041, longitude: 28.0473 };
 
-const BRAND_TAGS = ['engen', 'bp', 'shell', 'sasol', 'caltex', 'astron', 'total'];
+const PRICE_ROWS: { key: keyof PriceMap; label: string }[] = [
+  { key: 'unleaded_95', label: 'Petrol 95' },
+  { key: 'unleaded_93', label: 'Petrol 93' },
+  { key: 'diesel_50ppm', label: 'Diesel 50ppm' },
+];
 
-interface Station {
-  id: string;
-  name: string;
-  brand: string;
-  latitude: number;
-  longitude: number;
-  address: string;
-  distance: number;
-  open_now: boolean | null;
-  rating: number | null;
+function formatDistance(m: number): string {
+  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
 }
 
 export default function StationsScreen() {
   const colors = useColors();
+  const dark = useColorScheme() === 'dark';
   const [stations, setStations] = useState<Station[]>([]);
+  const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
+  const [region, setRegion] = useState<PriceRegion>('inland');
+  const [prices, setPrices] = useState<PriceMap>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [locationNote, setLocationNote] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
 
-  const requestLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationError('Location permission denied. Using default location.');
-        // Use Johannesburg as default
-        return { coords: { latitude: -26.2041, longitude: 28.0473 } };
-      }
-
-      const loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc);
-      return loc;
-    } catch (err) {
-      setLocationError('Could not get location. Using default.');
-      return { coords: { latitude: -26.2041, longitude: 28.0473 } };
-    }
-  };
-
-  const fetchStations = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     try {
       setError(null);
-
-      const loc = await requestLocation();
-      const { latitude, longitude } = loc.coords;
-
-      // Use the location-aware function first. The legacy `stations` function
-      // defaults to Johannesburg when it is called without coordinates.
-      const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('nearby-stations', {
-        body: { latitude, longitude, radius: 5000 },
-      });
-
-      if (nearbyError || !nearbyData?.stations) {
-        // Never show made-up stations: say what went wrong instead.
-        throw new Error(
-          nearbyData?.error ||
-            'Nearby stations are unavailable right now. Check that the nearby-stations function is deployed with a Google Places API key.'
-        );
+      let coords = DEFAULT_LOCATION;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({});
+          coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          setLocationNote(null);
+        } else {
+          setLocationNote('Location permission denied, showing Johannesburg.');
+        }
+      } catch {
+        setLocationNote('Could not get your location, showing Johannesburg.');
       }
-      setStations(nearbyData.stations);
+      setUserLocation(coords);
+
+      const r = regionForLocation(coords.latitude, coords.longitude);
+      setRegion(r);
+
+      const [found, current] = await Promise.all([
+        fetchNearbyStations(coords.latitude, coords.longitude),
+        fetchCurrentPrices(r),
+      ]);
+      setStations(found);
+      setPrices(current.prices);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load stations');
+      setError(err instanceof Error ? err.message : 'Could not load nearby stations');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -109,28 +92,34 @@ export default function StationsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchStations();
-    }, [fetchStations])
+      fetchAll();
+    }, [fetchAll])
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchStations();
-  }, [fetchStations]);
+    fetchAll();
+  }, [fetchAll]);
 
-  const getBrandColor = (brand: string): string => {
-    const b = brand.toLowerCase();
-    for (const tag of BRAND_TAGS) {
-      if (b.includes(tag)) return BRAND_COLORS[tag];
-    }
-    return BRAND_COLORS.other;
-  };
+  const brandsPresent = useMemo(
+    () => Object.keys(BRANDS).filter((b) => stations.some((s) => s.brand === b)),
+    [stations]
+  );
 
-  const filteredStations = selectedBrand
-    ? stations.filter((s) => s.brand.toLowerCase().includes(selectedBrand.toLowerCase()))
-    : stations;
+  const visibleStations = useMemo(
+    () => (selectedBrand ? stations.filter((s) => s.brand === selectedBrand) : stations),
+    [stations, selectedBrand]
+  );
 
-  const sortedStations = [...filteredStations].sort((a, b) => a.distance - b.distance);
+  const priceRows = useMemo(
+    () => PRICE_ROWS.filter((p) => prices[p.key]).map((p) => ({ ...p, cents: prices[p.key]! })),
+    [prices]
+  );
+
+  const mapPrices = useMemo(
+    () => priceRows.map((p) => ({ label: p.label, price: formatPrice(p.cents) })),
+    [priceRows]
+  );
 
   const openNavigation = (station: Station) => {
     const destination = `${station.latitude},${station.longitude}`;
@@ -139,7 +128,6 @@ export default function StationsScreen() {
       ios: `maps://?daddr=${destination}`,
       android: `geo:0,0?q=${destination}(${encodeURIComponent(station.name)})`,
     });
-
     Linking.openURL(nativeMapsUrl || googleMapsUrl).catch(() => Linking.openURL(googleMapsUrl));
   };
 
@@ -148,130 +136,130 @@ export default function StationsScreen() {
   }
 
   if (error) {
-    return <ErrorState message={error} onRetry={fetchStations} />;
+    return <ErrorState message={error} onRetry={fetchAll} />;
   }
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Nearby Stations</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Find fuel stations near your location
+          {stations.length} stations within {stations.length && stations[stations.length - 1].distance > 5000 ? '15' : '5'} km
         </Text>
-        {locationError && (
-          <Text style={[styles.locationWarning, { color: colors.warning }]}>
-            {locationError}
-          </Text>
+        {locationNote && (
+          <Text style={[styles.locationWarning, { color: colors.warning }]}>{locationNote}</Text>
         )}
       </View>
 
-      {/* Brand Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.brandFilter}
-        contentContainerStyle={styles.brandFilterContent}
-      >
-        <Pressable
-          style={[
-            styles.brandChip,
-            {
-              backgroundColor: !selectedBrand ? colors.primary : colors.surfaceSecondary,
-              borderColor: !selectedBrand ? colors.primary : colors.border,
-            },
-          ]}
-          onPress={() => setSelectedBrand(null)}
-        >
-          <Text style={[styles.brandChipText, { color: !selectedBrand ? colors.textInverse : colors.text }]}>
-            All
-          </Text>
-        </Pressable>
-        {BRAND_TAGS.slice(0, 6).map((brand) => (
-          <Pressable
-            key={brand}
-            style={[
-              styles.brandChip,
-              {
-                backgroundColor: selectedBrand === brand ? colors.primary : colors.surfaceSecondary,
-                borderColor: selectedBrand === brand ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={() => setSelectedBrand(brand)}
-          >
-            <Text style={[styles.brandChipText, { color: selectedBrand === brand ? colors.textInverse : colors.text }]}>
-              {brand.charAt(0).toUpperCase() + brand.slice(1)}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <StationsMap
+        user={userLocation}
+        stations={visibleStations}
+        prices={mapPrices}
+        dark={dark}
+        height={320}
+      />
 
-      {/* Stations List */}
-      {sortedStations.length === 0 ? (
+      {/* Prices that apply at these stations */}
+      {priceRows.length > 0 && (
+        <Card style={styles.pricesCard}>
+          <Text style={[styles.pricesTitle, { color: colors.text }]}>
+            Pump prices here ({REGION_LABEL[region]} zone)
+          </Text>
+          <View style={styles.pricesRow}>
+            {priceRows.map((p) => (
+              <View key={p.key} style={styles.priceCell}>
+                <Text style={[styles.priceCellLabel, { color: colors.textSecondary }]}>{p.label}</Text>
+                <Text style={[styles.priceCellValue, { color: colors.text }]}>{formatPrice(p.cents)}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={[styles.pricesNote, { color: colors.textTertiary }]}>
+            Petrol is government-regulated, so every station in a zone charges the same. Diesel is a
+            maximum price; some stations sell it for less.
+          </Text>
+        </Card>
+      )}
+
+      {/* Brand filter */}
+      {brandsPresent.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.brandFilter}
+          contentContainerStyle={styles.brandFilterContent}
+        >
+          {[null, ...brandsPresent].map((b) => {
+            const active = selectedBrand === b;
+            return (
+              <Pressable
+                key={b ?? 'all'}
+                onPress={() => setSelectedBrand(b)}
+                style={[
+                  styles.brandChip,
+                  {
+                    backgroundColor: active ? colors.primary : colors.surfaceSecondary,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                {b && <View style={[styles.chipDot, { backgroundColor: BRANDS[b].color }]} />}
+                <Text style={[styles.brandChipText, { color: active ? colors.textInverse : colors.text }]}>
+                  {b ? BRANDS[b].label : 'All'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {visibleStations.length === 0 ? (
         <Card style={styles.emptyCard}>
           <View style={styles.emptyContent}>
             <MapPin size={48} color={colors.textTertiary} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No stations found nearby
-            </Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No stations found nearby</Text>
           </View>
         </Card>
       ) : (
         <View style={styles.stationList}>
-          {sortedStations.map((station, index) => (
+          {visibleStations.map((station) => (
             <Card key={station.id} style={styles.stationCard}>
               <View style={styles.stationRow}>
-                <View style={[styles.brandDot, { backgroundColor: getBrandColor(station.brand) }]} />
-
-                <View style={styles.stationInfo}>
-                  <Text style={[styles.stationName, { color: colors.text }]}>
-                    {station.name}
-                  </Text>
-                  <Text style={[styles.stationAddress, { color: colors.textSecondary }]}>
-                    {station.address}
-                  </Text>
-                  <Text style={[styles.stationDistance, { color: colors.textTertiary }]}>
-                    {station.distance < 1000
-                      ? `${station.distance}m away`
-                      : `${(station.distance / 1000).toFixed(1)}km away`}
-                  </Text>
+                <View style={[styles.brandIcon, { backgroundColor: BRANDS[station.brand].color }]}>
+                  <Fuel size={18} color={station.brand === 'shell' ? '#1F2937' : '#FFFFFF'} />
                 </View>
-
-                <View style={styles.stationStatus}>
-                  {station.open_now !== null && (
-                    <View
-                      style={[
-                        styles.openBadge,
-                        { backgroundColor: station.open_now ? colors.successLight : colors.errorLight },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.openText,
-                          { color: station.open_now ? colors.success : colors.error },
-                        ]}
-                      >
-                        {station.open_now ? 'Open' : 'Closed'}
-                      </Text>
-                    </View>
+                <View style={styles.stationInfo}>
+                  <Text style={[styles.stationName, { color: colors.text }]}>{station.name}</Text>
+                  {!!station.address && (
+                    <Text style={[styles.stationAddress, { color: colors.textSecondary }]}>{station.address}</Text>
+                  )}
+                  <View style={styles.metaRow}>
+                    <Text style={[styles.stationDistance, { color: colors.textTertiary }]}>
+                      {station.brandLabel} · {formatDistance(station.distance)}
+                    </Text>
+                    {station.open24h && (
+                      <View style={styles.metaItem}>
+                        <Clock size={12} color={colors.success} />
+                        <Text style={[styles.openText, { color: colors.success }]}>24 hours</Text>
+                      </View>
+                    )}
+                  </View>
+                  {priceRows.length > 0 && (
+                    <Text style={[styles.stationPrices, { color: colors.text }]}>
+                      {priceRows.map((p) => `${p.label} ${formatPrice(p.cents)}`).join('  ·  ')}
+                    </Text>
                   )}
                 </View>
-              </View>
-
-              <View style={[styles.stationActions, { borderTopColor: colors.border }]}>
                 <Pressable
-                  style={[styles.actionButton, { backgroundColor: colors.primaryLight }]}
                   onPress={() => openNavigation(station)}
+                  style={[styles.navButton, { backgroundColor: colors.primaryLight }]}
+                  accessibilityLabel={`Directions to ${station.name}`}
                 >
                   <Navigation2 size={18} color={colors.primary} />
-                  <Text style={[styles.actionText, { color: colors.primary }]}>Navigate</Text>
                 </Pressable>
               </View>
             </Card>
@@ -279,20 +267,9 @@ export default function StationsScreen() {
         </View>
       )}
 
-      {/* Disclaimer */}
-      <Card style={styles.disclaimerCard}>
-        <View style={styles.disclaimerContent}>
-          <Clock size={20} color={colors.warning} />
-          <View style={styles.disclaimerText}>
-            <Text style={[styles.disclaimerTitle, { color: colors.text }]}>
-              Data Notice
-            </Text>
-            <Text style={[styles.disclaimerMessage, { color: colors.textSecondary }]}>
-              Station data may not reflect real-time availability. Operating hours, prices, and fuel availability are subject to change. Always confirm directly with the station before visiting.
-            </Text>
-          </View>
-        </View>
-      </Card>
+      <Text style={[styles.attribution, { color: colors.textTertiary }]}>
+        Station data © OpenStreetMap contributors
+      </Text>
     </ScrollView>
   );
 }
@@ -327,6 +304,8 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.lg,
   },
   brandChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
@@ -429,5 +408,78 @@ const styles = StyleSheet.create({
   disclaimerMessage: {
     fontSize: FontSizes.xs,
     lineHeight: 18,
+  },
+  pricesCard: {
+    marginTop: Spacing.lg,
+    padding: Spacing.lg,
+  },
+  pricesTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+    marginBottom: Spacing.md,
+  },
+  pricesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  priceCell: {
+    flex: 1,
+  },
+  priceCellLabel: {
+    fontSize: FontSizes.xs,
+  },
+  priceCellValue: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    marginTop: 2,
+  },
+  pricesNote: {
+    fontSize: FontSizes.xs,
+    marginTop: Spacing.md,
+    lineHeight: 16,
+  },
+  chipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  brandIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: 2,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  stationPrices: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.medium,
+    marginTop: 6,
+  },
+  navButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.sm,
+  },
+  attribution: {
+    fontSize: FontSizes.xs,
+    textAlign: 'center',
+    marginTop: Spacing.lg,
   },
 });

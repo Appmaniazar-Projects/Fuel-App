@@ -54,6 +54,7 @@ export interface Vehicle {
   fuel_type?: 'diesel' | 'petrol' | null;
   year_from?: number | null;
   year_to?: number | null;
+  created_by?: string | null; // set for cars a user added themselves
 }
 
 export interface UserVehicleWithVehicle {

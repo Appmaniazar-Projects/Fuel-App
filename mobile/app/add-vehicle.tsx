@@ -11,12 +11,13 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Search, Check, Star, X } from 'lucide-react-native';
+import { Search, Check, Star, X, Plus } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { ErrorState } from '@/components/ErrorState';
+import { CustomVehicleForm } from '@/components/CustomVehicleForm';
 import {
   useColors,
   Spacing,
@@ -41,6 +42,7 @@ export default function AddVehicleScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCustom, setShowCustom] = useState(false);
 
   useEffect(() => {
     supabase
@@ -69,9 +71,11 @@ export default function AddVehicleScreen() {
     const q = query.toLowerCase();
     const filtered = allVehicles.filter(
       (v) =>
-        v.make.toLowerCase().includes(q) ||
-        v.model.toLowerCase().includes(q) ||
-        v.variant?.toLowerCase().includes(q)
+        `${v.make} ${v.model} ${v.variant ?? ''}`.toLowerCase().includes(q) ||
+        // a year like "2009" matches every generation sold that year
+        (/^\d{4}$/.test(q.trim()) &&
+          (v.year_from ?? 0) <= Number(q) &&
+          Number(q) <= (v.year_to ?? 9999))
     );
     setVehicles(filtered);
   };
@@ -237,6 +241,18 @@ export default function AddVehicleScreen() {
                       </Text>
                     )}
                     <View style={styles.vehicleItemMeta}>
+                      {vehicle.year_from && (
+                        <>
+                          <Text style={[styles.vehicleItemMetaText, { color: colors.textTertiary }]}>
+                            {vehicle.year_from === vehicle.year_to || !vehicle.year_to
+                              ? vehicle.year_from
+                              : `${vehicle.year_from}–${vehicle.year_to}`}
+                          </Text>
+                          <Text style={[styles.vehicleItemMetaDot, { color: colors.textTertiary }]}>
+                            •
+                          </Text>
+                        </>
+                      )}
                       <Text style={[styles.vehicleItemMetaText, { color: colors.textTertiary }]}>
                         {vehicle.fuel_type === 'diesel' ? 'Diesel' : 'Petrol'}
                       </Text>
@@ -266,6 +282,34 @@ export default function AddVehicleScreen() {
                 <Text style={[styles.moreResults, { color: colors.textSecondary }]}>
                   Showing 20 of {vehicles.length}. Refine your search to see more.
                 </Text>
+              )}
+
+              {showCustom && user ? (
+                <CustomVehicleForm
+                  userId={user.id}
+                  initialText={searchQuery}
+                  onCancel={() => setShowCustom(false)}
+                  onCreated={(v) => {
+                    setShowCustom(false);
+                    setAllVehicles((prev) => [...prev, v]);
+                    handleSelectVehicle(v);
+                  }}
+                />
+              ) : (
+                <Pressable
+                  onPress={() => setShowCustom(true)}
+                  style={[styles.vehicleItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <View style={styles.vehicleItemInfo}>
+                    <Text style={[styles.vehicleItemTitle, { color: colors.text }]}>
+                      My car isn&apos;t listed
+                    </Text>
+                    <Text style={[styles.vehicleItemVariant, { color: colors.textSecondary }]}>
+                      Add any make, model and year
+                    </Text>
+                  </View>
+                  <Plus size={20} color={colors.primary} />
+                </Pressable>
               )}
             </View>
           )}
