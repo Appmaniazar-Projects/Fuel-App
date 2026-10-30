@@ -1,3 +1,3 @@
-# fuelwise
+# FuelWise mobile app
 
-[![Open in Bolt](https://bolt.new/static/open-in-bolt.svg)](https://bolt.new/~/sb1-wtqzzext)
+Expo / React Native app for FuelApp. See the root README for setup.
