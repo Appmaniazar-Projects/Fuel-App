@@ -20,6 +20,7 @@ const routes = {
   '/api/fuel/keys': require('./api/fuel/keys'),
   '/api/fuel/update-monthly': require('./api/fuel/update-monthly'),
   '/api/monitoring/health': require('./api/monitoring/health'),
+  '/api/stations/import': require('./api/stations/import'),
 };
 
 app.get('/api', (req, res) =>

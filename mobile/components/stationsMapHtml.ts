@@ -58,8 +58,11 @@ export function buildStationsMapHtml(opts: {
   .me{width:16px;height:16px;border-radius:50%;background:#2563EB;border:3px solid #fff;box-shadow:0 0 0 6px rgba(37,99,235,.25)}
 </style></head><body><div id="map"></div><script>
   var map = L.map('map', { zoomControl: true }).setView([${opts.user.latitude}, ${opts.user.longitude}], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+  // CARTO basemap tiles. tile.openstreetmap.org refuses requests without a
+  // Referer (403 "Access blocked"), which is what an embedded map sends.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/${opts.dark ? 'dark_all' : 'voyager'}/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, subdomains: 'abcd',
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
   }).addTo(map);
   L.marker([${opts.user.latitude}, ${opts.user.longitude}], {
     icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [16, 16] }), title: 'You'

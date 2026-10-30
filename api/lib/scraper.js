@@ -20,6 +20,9 @@
  *     only; paraffin_retail is never scraped and always comes from the
  *     fallback data.
  *
+ *   - Sulphur content: 50ppm diesel = 0.005% S, 500ppm diesel = 0.05% S.
+ *     (Earlier versions had these swapped.)
+ *
  * DMRE is not scraped: their announcements describe price *changes*, not
  * absolute prices, so there's no honest way to derive a current price from
  * them without a separately maintained running base price.
@@ -53,8 +56,8 @@ const REGION_FUELS = {
   coastal: {
     unleaded_95: { label: "Unleaded 95", grade: "ULP", type: "Petrol", match: ["95", "ulp"] },
     leaded_95: { label: "Leaded 95", grade: "LRP", type: "Petrol", match: ["95", "lrp"] },
-    diesel_50ppm: { label: "Diesel 50ppm", grade: "0.05%", type: "Diesel", match: ["diesel", "0.05"] },
-    diesel_500ppm: { label: "Diesel 500ppm", grade: "0.005%", type: "Diesel", match: ["diesel", "0.005"] },
+    diesel_50ppm: { label: "Diesel 50ppm", grade: "0.005%", type: "Diesel", match: ["diesel", "0.005"] },
+    diesel_500ppm: { label: "Diesel 500ppm", grade: "0.05%", type: "Diesel", match: ["diesel", "0.05"], exclude: ["0.005"] },
     paraffin_wholesale: { label: "Paraffin Wholesale", grade: "Wholesale", type: "Paraffin", match: ["paraffin"] },
     lpg: { label: "LPG", grade: "per kg", type: "LPG", match: ["gas"] },
   },
@@ -62,8 +65,8 @@ const REGION_FUELS = {
     unleaded_93: { label: "Unleaded 93", grade: "ULP", type: "Petrol", match: ["93", "ulp"] },
     leaded_93: { label: "Leaded 93", grade: "LRP", type: "Petrol", match: ["93", "lrp"] },
     unleaded_95: { label: "Unleaded 95", grade: "ULP", type: "Petrol", match: ["95", "ulp"] },
-    diesel_50ppm: { label: "Diesel 50ppm", grade: "0.05%", type: "Diesel", match: ["diesel", "0.05"] },
-    diesel_500ppm: { label: "Diesel 500ppm", grade: "0.005%", type: "Diesel", match: ["diesel", "0.005"] },
+    diesel_50ppm: { label: "Diesel 50ppm", grade: "0.005%", type: "Diesel", match: ["diesel", "0.005"] },
+    diesel_500ppm: { label: "Diesel 500ppm", grade: "0.05%", type: "Diesel", match: ["diesel", "0.05"], exclude: ["0.005"] },
     paraffin_wholesale: { label: "Paraffin Wholesale", grade: "Wholesale", type: "Paraffin", match: ["paraffin"] },
     lpg: { label: "LPG", grade: "per kg", type: "LPG", match: ["gas"] },
   },
@@ -80,8 +83,8 @@ const FALLBACK = {
     prices: {
       unleaded_95: 2523,
       leaded_95: 2523,
-      diesel_50ppm: 2392,
-      diesel_500ppm: 2430,
+      diesel_50ppm: 2430,
+      diesel_500ppm: 2392,
       paraffin_wholesale: 1619,
       paraffin_retail: 1587, // no live source for this — carried from prior manual gazette figure
       lpg: 3786,
@@ -89,8 +92,8 @@ const FALLBACK = {
     prev: {
       unleaded_95: 2719,
       leaded_95: 2719,
-      diesel_50ppm: 2705,
-      diesel_500ppm: 2789,
+      diesel_50ppm: 2789,
+      diesel_500ppm: 2705,
       paraffin_wholesale: 2142,
       paraffin_retail: 1529,
       lpg: 3769,
@@ -103,8 +106,8 @@ const FALLBACK = {
       unleaded_93: 2594,
       leaded_93: 2594,
       unleaded_95: 2610,
-      diesel_50ppm: 2479,
-      diesel_500ppm: 2517,
+      diesel_50ppm: 2517,
+      diesel_500ppm: 2479,
       paraffin_wholesale: 1724,
       paraffin_retail: 1643, // no live source for this — carried from prior manual gazette figure
       lpg: 4111,
@@ -113,8 +116,8 @@ const FALLBACK = {
       unleaded_93: 2795,
       leaded_93: 2795,
       unleaded_95: 2663,
-      diesel_50ppm: 2793,
-      diesel_500ppm: 2876,
+      diesel_50ppm: 2876,
+      diesel_500ppm: 2793,
       paraffin_wholesale: 2247,
       paraffin_retail: 1599,
       lpg: 4095,
@@ -223,7 +226,8 @@ function parseFiasaTables(html) {
     for (const { label, cells } of dataRows) {
       // Find which fuel key (if any) this row corresponds to.
       const entry = Object.entries(fuelDefs).find(([, meta]) =>
-        meta.match.every((p) => label.includes(p))
+        meta.match.every((p) => label.includes(p)) &&
+        !(meta.exclude || []).some((p) => label.includes(p))
       );
       if (!entry) continue;
       const [key] = entry;

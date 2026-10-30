@@ -25,7 +25,8 @@ function res() { const r = { headers: {}, setHeader(k, v) { r.headers[k] = v; },
   scraper.fetchMonthlyPrices = async (region) => ({
     effective_date: '2026-10-07', region: region === 'coastal' ? 'Western Cape Coastal' : 'Gauteng Inland',
     source: 'fuelsindustry.org.za', prices: { unleaded_95: 3025, leaded_93: 2988 },
-    series: { unleaded_95: [{ month: '2026-09', cents: 2692 }, { month: '2026-10', cents: 3025 }], leaded_93: [{ month: '2026-10', cents: 2988 }] },
+    series: { unleaded_95: [{ month: '2026-09', cents: 2692 }, { month: '2026-10', cents: 3025 }], leaded_93: [{ month: '2026-10', cents: 2988 }],
+              diesel_50ppm: [{ month: '2026-10', cents: 3280 }], diesel_500ppm: [{ month: '2026-10', cents: 3195 }] },
   });
   delete require.cache[require.resolve(path.join(API, 'api/fuel/update-monthly'))];
   const handler2 = require(path.join(API, 'api/fuel/update-monthly'));
@@ -35,6 +36,8 @@ function res() { const r = { headers: {}, setHeader(k, v) { r.headers[k] = v; },
   const hist = calls.filter(c => c[0] === 'history');
   assert.deepStrictEqual(hist.map(c => c[1]), ['2026-09', '2026-10']);
   assert.ok(hist.every(c => !c[2].includes('leaded_93')), 'leaded_93 is not in fuel_types');
+  // diesel is stored under the live fuel_types names
+  assert.deepStrictEqual(hist[1][2].sort(), ['diesel_low_sulphur', 'diesel_ultra', 'unleaded_95']);
   assert.deepStrictEqual(live.body.data.results[0].history_months, ['2026-09', '2026-10']);
   console.log('monthly update: ALL PASS');
 })();

@@ -14,6 +14,7 @@ const { withAuth }    = require("../../lib/auth");
 const { FUEL_META }   = require("../../lib/scraper");
 const { FuelPriceDB } = require("../../lib/supabase");
 const { ok, error }   = require("../../lib/respond");
+const { APP_TO_HISTORY_KEY, HISTORY_TO_APP_KEY } = require("../../lib/fuelKeys");
 
 module.exports = withAuth(async (req, res) => {
   const { fuel_key, from, to } = req.query;
@@ -23,11 +24,12 @@ module.exports = withAuth(async (req, res) => {
   }
 
   try {
-    const rows = await FuelPriceDB.getHistoricalPrices(fuel_key, from, to);
+    const dbKey = fuel_key ? APP_TO_HISTORY_KEY[fuel_key] || fuel_key : null;
+    const rows = await FuelPriceDB.getHistoricalPrices(dbKey, from, to);
 
     const records = rows.map((r) => ({
       month: r.month,
-      fuel_key: r.fuel_key,
+      fuel_key: HISTORY_TO_APP_KEY[r.fuel_key] || r.fuel_key,
       price_cents: r.price_cents,
       // Always derive from cents: the live column's default rounds to whole rands.
       price_rands: +(r.price_cents / 100).toFixed(2),

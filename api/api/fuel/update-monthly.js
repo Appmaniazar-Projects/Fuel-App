@@ -21,14 +21,16 @@ const { withAuth } = require("../../lib/auth");
 const { fetchMonthlyPrices } = require("../../lib/scraper");
 const { FuelPriceDB } = require("../../lib/supabase");
 const { ok, error } = require("../../lib/respond");
+const { APP_TO_HISTORY_KEY } = require("../../lib/fuelKeys");
 
 const REGIONS = ["gauteng", "coastal"];
 // fuel_history has no region column and the seeded history is Gauteng
 // Inland, so only that region's prices go into history.
 const HISTORY_REGION = "Gauteng Inland";
-// fuel_history.fuel_key must exist in the fuel_types table, and these are
-// the fuels the app's price-history chart shows.
-const HISTORY_KEYS = ["unleaded_93", "unleaded_95", "diesel_50ppm", "diesel_500ppm"];
+// The fuels the app's price-history chart shows. fuel_history.fuel_key must
+// exist in the fuel_types table, so diesel is stored under its older names
+// (see lib/fuelKeys.js).
+const HISTORY_KEYS = Object.keys(APP_TO_HISTORY_KEY);
 
 module.exports = withAuth(async (req, res) => {
   const results = [];
@@ -59,7 +61,11 @@ module.exports = withAuth(async (req, res) => {
         const rowsByMonth = {};
         for (const fuel_key of HISTORY_KEYS) {
           for (const { month, cents } of snapshot.series[fuel_key] || []) {
-            (rowsByMonth[month] = rowsByMonth[month] || []).push({ month, fuel_key, price_cents: cents });
+            (rowsByMonth[month] = rowsByMonth[month] || []).push({
+              month,
+              fuel_key: APP_TO_HISTORY_KEY[fuel_key],
+              price_cents: cents,
+            });
           }
         }
         for (const [month, rows] of Object.entries(rowsByMonth)) {

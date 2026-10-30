@@ -38,8 +38,8 @@ const REGIONS = [
 const FUEL_DISPLAY = [
   { key: 'unleaded_95', name: 'Unleaded 95 Octane', dbKey: 'unleaded_95' },
   { key: 'unleaded_93', name: 'Unleaded 93 Octane', dbKey: 'unleaded_93' },
-  { key: 'diesel_50ppm', name: 'Diesel 50ppm (0.05%)', dbKey: 'diesel_50ppm' },
-  { key: 'diesel_500ppm', name: 'Diesel 500ppm (0.005%)', dbKey: 'diesel_500ppm' },
+  { key: 'diesel_50ppm', name: 'Diesel 50ppm (0.005%)', dbKey: 'diesel_50ppm' },
+  { key: 'diesel_500ppm', name: 'Diesel 500ppm (0.05%)', dbKey: 'diesel_500ppm' },
 ];
 
 interface PriceData {

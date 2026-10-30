@@ -72,10 +72,14 @@ const FuelPriceDB = {
   // price_cents matching the fuel_prices columns (unleaded_93, unleaded_95,
   // diesel_50ppm, diesel_500ppm, paraffin_retail, paraffin_wholesale, lpg).
   async upsertCurrentPrices(region, prices, source, effectiveDate) {
+    // Also retire rows written under the old display labels, e.g.
+    // 'Gauteng (Inland)', so only one row per region stays current.
+    const LEGACY = { 'Gauteng Inland': 'Gauteng (Inland)', 'Western Cape Coastal': 'Western Cape (Coastal)' };
+    const regionNames = [region, LEGACY[region]].filter(Boolean);
     const { error: clearError } = await supabase
       .from('fuel_prices')
       .update({ is_current: false })
-      .eq('region', region)
+      .in('region', regionNames)
       .eq('is_current', true);
 
     if (clearError) {

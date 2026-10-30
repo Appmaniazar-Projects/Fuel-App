@@ -26,7 +26,7 @@ export function StationsMap({ user, stations, prices, dark, height = 320 }: Prop
         style={styles.map}
         // Open "Directions" links in the maps app / browser, not inside the map
         onShouldStartLoadWithRequest={(req) => {
-          if (req.url.startsWith('http') && !req.url.includes('tile.openstreetmap') && !req.url.includes('unpkg.com')) {
+          if (req.url.startsWith('http') && !req.url.includes('cartocdn.com') && !req.url.includes('unpkg.com')) {
             Linking.openURL(req.url);
             return false;
           }

@@ -9,10 +9,11 @@ import {
   Linking,
   Platform,
   useColorScheme,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
-import { MapPin, Navigation2, Clock, Fuel } from 'lucide-react-native';
+import { MapPin, Navigation2, Clock, Fuel, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { Card } from '@/components/Card';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
@@ -54,11 +55,13 @@ export default function StationsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [locationNote, setLocationNote] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [stationsLoading, setStationsLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (force = false) => {
+    let coords = DEFAULT_LOCATION;
     try {
       setError(null);
-      let coords = DEFAULT_LOCATION;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
@@ -73,19 +76,24 @@ export default function StationsScreen() {
       }
       setUserLocation(coords);
 
+      // Prices first, so the screen shows something while stations load
       const r = regionForLocation(coords.latitude, coords.longitude);
       setRegion(r);
-
-      const [found, current] = await Promise.all([
-        fetchNearbyStations(coords.latitude, coords.longitude),
-        fetchCurrentPrices(r),
-      ]);
-      setStations(found);
+      const current = await fetchCurrentPrices(r);
       setPrices(current.prices);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load prices');
+    } finally {
+      setLoading(false);
+    }
+
+    try {
+      setStationsLoading(true);
+      setStations(await fetchNearbyStations(coords.latitude, coords.longitude, { force }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load nearby stations');
     } finally {
-      setLoading(false);
+      setStationsLoading(false);
       setRefreshing(false);
     }
   }, []);
@@ -98,7 +106,7 @@ export default function StationsScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchAll();
+    fetchAll(true);
   }, [fetchAll]);
 
   const brandsPresent = useMemo(
@@ -135,9 +143,11 @@ export default function StationsScreen() {
     return <LoadingState message="Finding nearby stations..." />;
   }
 
-  if (error) {
-    return <ErrorState message={error} onRetry={fetchAll} />;
+  if (error && stations.length === 0) {
+    return <ErrorState message={error} onRetry={() => fetchAll(true)} />;
   }
+
+  const shownStations = showAll ? visibleStations : visibleStations.slice(0, 5);
 
   return (
     <ScrollView
@@ -149,20 +159,14 @@ export default function StationsScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Nearby Stations</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {stations.length} stations within {stations.length && stations[stations.length - 1].distance > 5000 ? '15' : '5'} km
+          {stationsLoading
+            ? 'Searching for stations near you...'
+            : `${stations.length} stations within ${stations.length && stations[stations.length - 1].distance > 8000 ? '20' : '8'} km`}
         </Text>
         {locationNote && (
           <Text style={[styles.locationWarning, { color: colors.warning }]}>{locationNote}</Text>
         )}
       </View>
-
-      <StationsMap
-        user={userLocation}
-        stations={visibleStations}
-        prices={mapPrices}
-        dark={dark}
-        height={320}
-      />
 
       {/* Prices that apply at these stations */}
       {priceRows.length > 0 && (
@@ -185,6 +189,20 @@ export default function StationsScreen() {
         </Card>
       )}
 
+      <StationsMap
+        user={userLocation}
+        stations={visibleStations}
+        prices={mapPrices}
+        dark={dark}
+        height={300}
+      />
+      {stationsLoading && (
+        <View style={styles.inlineLoading}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.inlineLoadingText, { color: colors.textSecondary }]}>Finding stations...</Text>
+        </View>
+      )}
+
       {/* Brand filter */}
       {brandsPresent.length > 1 && (
         <ScrollView
@@ -198,7 +216,7 @@ export default function StationsScreen() {
             return (
               <Pressable
                 key={b ?? 'all'}
-                onPress={() => setSelectedBrand(b)}
+                onPress={() => { setSelectedBrand(b); setShowAll(false); }}
                 style={[
                   styles.brandChip,
                   {
@@ -217,7 +235,7 @@ export default function StationsScreen() {
         </ScrollView>
       )}
 
-      {visibleStations.length === 0 ? (
+      {stationsLoading ? null : visibleStations.length === 0 ? (
         <Card style={styles.emptyCard}>
           <View style={styles.emptyContent}>
             <MapPin size={48} color={colors.textTertiary} />
@@ -226,7 +244,7 @@ export default function StationsScreen() {
         </Card>
       ) : (
         <View style={styles.stationList}>
-          {visibleStations.map((station) => (
+          {shownStations.map((station) => (
             <Card key={station.id} style={styles.stationCard}>
               <View style={styles.stationRow}>
                 <View style={[styles.brandIcon, { backgroundColor: BRANDS[station.brand].color }]}>
@@ -264,6 +282,18 @@ export default function StationsScreen() {
               </View>
             </Card>
           ))}
+          {visibleStations.length > 5 && (
+            <Pressable
+              onPress={() => setShowAll((v) => !v)}
+              style={[styles.viewMore, { borderColor: colors.border }]}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.viewMoreText, { color: colors.primary }]}>
+                {showAll ? 'Show fewer' : `View ${visibleStations.length - 5} more stations`}
+              </Text>
+              {showAll ? <ChevronUp size={18} color={colors.primary} /> : <ChevronDown size={18} color={colors.primary} />}
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -410,7 +440,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   pricesCard: {
-    marginTop: Spacing.lg,
+    marginBottom: Spacing.lg,
     padding: Spacing.lg,
   },
   pricesTitle: {
@@ -481,5 +511,29 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     textAlign: 'center',
     marginTop: Spacing.lg,
+  },
+  inlineLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.lg,
+  },
+  inlineLoadingText: {
+    fontSize: FontSizes.sm,
+  },
+  viewMore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.xs,
+  },
+  viewMoreText: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semibold,
   },
 });

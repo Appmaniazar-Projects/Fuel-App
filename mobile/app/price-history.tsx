@@ -13,6 +13,7 @@ import {
   FontSizes,
   FontWeights,
   BorderRadius,
+  formatPriceChange,
 } from '@/lib/theme';
 import type { FuelHistory } from '@/types/database';
 
@@ -110,7 +111,11 @@ export default function PriceHistoryScreen() {
   const oldestPrice = history[0]?.price_cents || 0;
   const newestPrice = history[history.length - 1]?.price_cents || 0;
   const yearChange = newestPrice - oldestPrice;
-  const yearChangePercent = oldestPrice > 0 ? ((yearChange / oldestPrice) * 100) : 0;
+  // Month-on-month change, shown in cents like the Prices tab (e.g. +333c)
+  const previousPrice = history.length > 1 ? history[history.length - 2].price_cents : newestPrice;
+  const monthChange = newestPrice - previousPrice;
+  const changeColour = (c: number) => (c > 0 ? colors.error : c < 0 ? colors.success : colors.textTertiary);
+  const shortMonth = (m: string) => monthDate(m).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' });
 
   const currentFuel = FUEL_TYPES.find((f) => f.key === selectedFuel)!;
 
@@ -175,19 +180,29 @@ export default function PriceHistoryScreen() {
               </Text>
             </View>
 
-            <View style={[styles.yearChange, { backgroundColor: yearChange >= 0 ? colors.errorLight : colors.successLight }]}>
-              {yearChange >= 0
-                ? <TrendingUp size={18} color={colors.error} />
-                : <TrendingDown size={18} color={colors.success} />}
-              <Text
+            <View style={styles.changeColumn}>
+              <View
                 style={[
-                  styles.yearChangeText,
-                  { color: yearChange >= 0 ? colors.error : colors.success },
+                  styles.yearChange,
+                  { backgroundColor: monthChange > 0 ? colors.errorLight : monthChange < 0 ? colors.successLight : colors.surfaceSecondary },
                 ]}
               >
-                {yearChange >= 0 ? '+' : ''}{yearChangePercent.toFixed(1)}% since{' '}
-                {monthDate(history[0].month).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' })}
-              </Text>
+                {monthChange > 0 && <TrendingUp size={16} color={colors.error} />}
+                {monthChange < 0 && <TrendingDown size={16} color={colors.success} />}
+                <Text style={[styles.yearChangeText, { color: changeColour(monthChange) }]}>
+                  {monthChange === 0 ? 'No change' : formatPriceChange(monthChange)}
+                </Text>
+              </View>
+              {history.length > 1 && (
+                <Text style={[styles.changeSub, { color: colors.textTertiary }]}>
+                  vs {shortMonth(history[history.length - 2].month)}
+                </Text>
+              )}
+              {history.length > 2 && (
+                <Text style={[styles.changeSub, { color: changeColour(yearChange) }]}>
+                  {formatPriceChange(yearChange)} since {shortMonth(history[0].month)}
+                </Text>
+              )}
             </View>
           </View>
         </Card>
@@ -249,11 +264,15 @@ export default function PriceHistoryScreen() {
           <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.tableHeaderCell, { color: colors.textSecondary }]}>Month</Text>
             <Text style={[styles.tableHeaderCell, { color: colors.textSecondary }]}>Price/L</Text>
+            <Text style={[styles.tableHeaderCell, styles.tableChangeCell, { color: colors.textSecondary }]}>Change</Text>
           </View>
           {history
             .slice()
             .reverse()
-            .map((h) => (
+            .map((h, i, rows) => {
+              const prev = rows[i + 1];
+              const change = prev ? h.price_cents - prev.price_cents : null;
+              return (
               <View
                 key={h.month}
                 style={[styles.tableRow, { borderBottomColor: colors.border }]}
@@ -267,8 +286,12 @@ export default function PriceHistoryScreen() {
                 <Text style={[styles.tableCell, { color: colors.text }]}>
                   R{(h.price_cents / 100).toFixed(2)}
                 </Text>
+                <Text style={[styles.tableCell, styles.tableChangeCell, { color: change === null ? colors.textTertiary : changeColour(change) }]}>
+                  {change === null ? '—' : change === 0 ? '0c' : formatPriceChange(change)}
+                </Text>
               </View>
-            ))}
+              );
+            })}
         </Card>
       </ScrollView>
     </>
@@ -408,6 +431,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
   },
   tableHeaderCell: {
+    flex: 1,
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
   },
@@ -418,6 +442,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
   },
   tableCell: {
+    flex: 1,
     fontSize: FontSizes.md,
+  },
+  changeColumn: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  changeSub: {
+    fontSize: FontSizes.xs,
+  },
+  tableChangeCell: {
+    textAlign: 'right',
   },
 });

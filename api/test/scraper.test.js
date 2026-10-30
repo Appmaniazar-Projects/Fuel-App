@@ -21,8 +21,12 @@ let html = table(c, (m,i)=>`${i+1}-${m}-26`) + table(g, (m,i)=>`${i+1}-${m}-26`)
 let r = parseFiasaTables(html);
 assert.strictEqual(r.gauteng.prices.unleaded_95, 2712);
 assert.strictEqual(r.gauteng.prevPrices.unleaded_95, 2620);
-assert.strictEqual(r.coastal.prices.diesel_500ppm, 2530);
-assert.strictEqual(r.coastal.prevPrices.diesel_500ppm, 2440);
+// 50ppm diesel is the 0.005% sulphur row, 500ppm the 0.05% row
+assert.strictEqual(r.coastal.prices.diesel_50ppm, 2530);
+assert.strictEqual(r.coastal.prevPrices.diesel_50ppm, 2440);
+assert.strictEqual(r.coastal.prices.diesel_500ppm, 2490);
+assert.strictEqual(r.gauteng.prices.diesel_50ppm, 2620);
+assert.strictEqual(r.gauteng.prices.diesel_500ppm, 2580);
 assert.strictEqual(r.gauteng.prevPrices.paraffin_wholesale, 1700, 'skips blank months to find previous');
 assert.strictEqual(r.gauteng.effectiveDate, '2026-10-10');
 assert.deepStrictEqual(r.gauteng.series.unleaded_95.map(x => x.month),
