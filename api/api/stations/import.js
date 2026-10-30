@@ -1,7 +1,8 @@
 /**
  * GET or POST /api/stations/import
  * One-off (or occasional) import of every South African fuel station from
- * OpenStreetMap into the fuel_stations table. Takes 1-3 minutes.
+ * OpenStreetMap into the fuel_stations table, in 16 areas. Takes 1-5 minutes.
+ * Safe to re-run: rows are upserted by OpenStreetMap id.
  */
 
 const { withAuth } = require("../../lib/auth");
