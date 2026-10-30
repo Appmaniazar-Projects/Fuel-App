@@ -30,8 +30,9 @@ import type { FuelPrice } from '@/types/database';
 // Gauteng vs Coastal, so there's no genuine independent KZN price feed.
 // Add it back only once a real KZN-specific source exists.
 const REGIONS = [
-  { key: 'Gauteng (Inland)', label: 'Gauteng (Inland)' },
-  { key: 'Western Cape (Coastal)', label: 'Western Cape (Coastal)' },
+  // key = the value stored in fuel_prices.region; label = display text
+  { key: 'Gauteng Inland', label: 'Gauteng (Inland)' },
+  { key: 'Western Cape Coastal', label: 'Western Cape (Coastal)' },
 ];
 
 const FUEL_DISPLAY = [
@@ -71,7 +72,7 @@ export default function PricesScreen() {
 
           const currentObj: any = {
             effective_date: apiData.data.effective_date,
-            data_source: apiData.data.data_source || 'DMRE',
+            data_source: apiData.data._meta?.data_source || 'DMRE',
           };
 
           fuels.forEach((f: any) => {
@@ -228,6 +229,8 @@ export default function PricesScreen() {
       <View style={styles.priceList}>
         {FUEL_DISPLAY.map((fuel) => {
           const currentPrice = getPrice(fuel.dbKey, data?.current as FuelPrice);
+          // Not every fuel is sold in every region (e.g. no 93 octane at the coast)
+          if (!currentPrice) return null;
           const { change, direction } = getChange(fuel.key, currentPrice);
 
           return (

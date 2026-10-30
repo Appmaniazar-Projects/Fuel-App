@@ -46,7 +46,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedRegion] = useState('Gauteng (Inland)');
+  const [selectedRegion] = useState('Gauteng Inland');
 
   const fetchData = useCallback(async () => {
   try {
