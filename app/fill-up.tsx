@@ -142,7 +142,7 @@ export default function FillUpScreen() {
         ? fuelPrices.unleaded_93
         : selectedFuel === 'diesel_50ppm'
           ? fuelPrices.diesel_50ppm
-          : fuelPrices.diesel_ultra
+          : fuelPrices.diesel_500ppm
     : 0;
 
   const fillUpCost = litresNum * pricePerLitre / 100;
@@ -192,7 +192,7 @@ export default function FillUpScreen() {
       case 'unleaded_95': return fuelPrices.unleaded_95;
       case 'unleaded_93': return fuelPrices.unleaded_93;
       case 'diesel_50ppm': return fuelPrices.diesel_50ppm;
-      case 'diesel_500ppm': return fuelPrices.diesel_ultra;
+      case 'diesel_500ppm': return fuelPrices.diesel_500ppm;
       default: return 0;
     }
   };
