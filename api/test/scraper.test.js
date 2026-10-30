@@ -25,6 +25,9 @@ assert.strictEqual(r.coastal.prices.diesel_500ppm, 2530);
 assert.strictEqual(r.coastal.prevPrices.diesel_500ppm, 2440);
 assert.strictEqual(r.gauteng.prevPrices.paraffin_wholesale, 1700, 'skips blank months to find previous');
 assert.strictEqual(r.gauteng.effectiveDate, '2026-10-10');
+assert.deepStrictEqual(r.gauteng.series.unleaded_95.map(x => x.month),
+  ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06','2026-07','2026-08','2026-09','2026-10']);
+assert.strictEqual(r.gauteng.series.unleaded_95[9].cents, 2712);
 console.log('dated headers:', r.gauteng.effectiveDate, r.gauteng.prices, r.gauteng.prevPrices);
 
 // Header style B: bare month names -> first Wednesday of that month

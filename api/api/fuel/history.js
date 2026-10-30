@@ -29,7 +29,8 @@ module.exports = withAuth(async (req, res) => {
       month: r.month,
       fuel_key: r.fuel_key,
       price_cents: r.price_cents,
-      price_rands: r.price_rands ?? +(r.price_cents / 100).toFixed(2),
+      // Always derive from cents: the live column's default rounds to whole rands.
+      price_rands: +(r.price_cents / 100).toFixed(2),
     }));
 
     return ok(res, {

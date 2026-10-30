@@ -216,6 +216,7 @@ function parseFiasaTables(html) {
 
     const prices = {};
     const prevPrices = {};
+    const series = {}; // fuel_key -> [{ month: 'YYYY-MM', cents }] for every filled column
     let latestDateLabel = null;
     let latestColumn = -1;
 
@@ -239,6 +240,16 @@ function parseFiasaTables(html) {
         }
       }
       if (currentVal === null) continue;
+
+      // Every filled month on the page, for backfilling history.
+      series[key] = [];
+      for (let c = 1; c < cells.length; c++) {
+        const val = parseFiasaCell($(cells[c]).text());
+        if (val === null) continue;
+        const cents = Math.round(val);
+        const date = parseColumnDate($(headerCells[c]).text().trim(), c);
+        if (date && isPlausible(cents, key)) series[key].push({ month: date.slice(0, 7), cents });
+      }
 
       const cents = Math.round(currentVal);
       if (!isPlausible(cents, key)) {
@@ -268,6 +279,7 @@ function parseFiasaTables(html) {
       results[region] = {
         prices,
         prevPrices,
+        series,
         dateLabel: latestDateLabel,
         effectiveDate: parseColumnDate(latestDateLabel, latestColumn),
       };
@@ -331,6 +343,7 @@ async function getLatestPrices(region = "inland") {
 
   let rawPrices;
   let prevPrices;
+  let series = {};
   let source;
   let effectiveDate = FALLBACK[normalizedRegion].effective_date;
   let nextRevision = FALLBACK[normalizedRegion].next_revision;
@@ -343,6 +356,7 @@ async function getLatestPrices(region = "inland") {
     }
     rawPrices = regionData.prices;
     prevPrices = regionData.prevPrices || {};
+    series = regionData.series || {};
     source = "fuelsindustry.org.za";
     if (regionData.effectiveDate) {
       effectiveDate = regionData.effectiveDate;
@@ -368,6 +382,7 @@ async function getLatestPrices(region = "inland") {
       brent_crude_usd: 69.08,
       zar_usd_rate: 16.26,
     },
+    series,
     _meta: {
       data_source: source,
       fetched_at: new Date().toISOString(),
@@ -412,6 +427,7 @@ async function fetchMonthlyPrices(region = "gauteng") {
     source: data._meta.data_source,
     fetched_at: data._meta.fetched_at,
     prices: Object.fromEntries(data.fuels.map((f) => [f.key, f.price])),
+    series: data.series, // per-fuel monthly prices from the live page (empty on fallback)
   };
 }
 

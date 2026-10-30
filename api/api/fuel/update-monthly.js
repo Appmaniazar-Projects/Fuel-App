@@ -53,18 +53,27 @@ module.exports = withAuth(async (req, res) => {
 
       let historySaved = [];
       if (snapshot.region === HISTORY_REGION) {
-        const month = `${snapshot.effective_date.slice(0, 7)}-01`;
-        const historyRows = Object.entries(snapshot.prices)
-          .filter(([fuel_key]) => HISTORY_KEYS.includes(fuel_key))
-          .map(([fuel_key, price_cents]) => ({ month, fuel_key, price_cents }));
-        historySaved = await FuelPriceDB.replaceHistoryForMonth(month, historyRows);
+        // Write every month shown on the FIASA page (the whole current year),
+        // not just this month, so gaps from missed runs are backfilled with
+        // real figures. Months are stored as 'YYYY-MM', as in the live table.
+        const rowsByMonth = {};
+        for (const fuel_key of HISTORY_KEYS) {
+          for (const { month, cents } of snapshot.series[fuel_key] || []) {
+            (rowsByMonth[month] = rowsByMonth[month] || []).push({ month, fuel_key, price_cents: cents });
+          }
+        }
+        for (const [month, rows] of Object.entries(rowsByMonth)) {
+          const written = await FuelPriceDB.replaceHistoryForMonth(month, rows);
+          historySaved = historySaved.concat(written);
+        }
       }
 
       results.push({
         region: snapshot.region,
         source: snapshot.source,
         current_row_id: saved.id,
-        history_rows_added: historySaved.length,
+        history_rows_written: historySaved.length,
+        history_months: [...new Set(historySaved.map((r) => r.month))].sort(),
       });
     }
 

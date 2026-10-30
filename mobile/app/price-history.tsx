@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect, Stack } from 'expo-router';
-import { TrendingUp } from 'lucide-react-native';
+import { TrendingUp, TrendingDown } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import * as fillupApi from '@/lib/fillupApi';
 import { Card } from '@/components/Card';
@@ -16,8 +16,21 @@ import {
 } from '@/lib/theme';
 import type { FuelHistory } from '@/types/database';
 
-const { width } = Dimensions.get('window');
-const CHART_WIDTH = width - 48;
+// Months are stored as 'YYYY-MM' (live DB) or 'YYYY-MM-01' (older rows).
+function monthDate(month: string): Date {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, 1);
+}
+
+// Keep the most recent 12 months, oldest first, one row per month.
+function lastTwelveMonths(rows: FuelHistory[]): FuelHistory[] {
+  const byMonth = new Map<string, FuelHistory>();
+  for (const row of rows) byMonth.set(row.month.slice(0, 7), row);
+  return [...byMonth.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([, row]) => row);
+}
 
 const FUEL_TYPES = [
   { key: 'unleaded_95', name: 'Unleaded 95', color: '#185FA5' },
@@ -41,7 +54,7 @@ export default function PriceHistoryScreen() {
         const apiData = await fillupApi.getHistory({ fuel_key: selectedFuel });
         if (apiData?.success && apiData?.data?.records) {
           // Map records to expected FuelHistory shape if necessary
-          setHistory(apiData.data.records || []);
+          setHistory(lastTwelveMonths(apiData.data.records || []));
           return;
         }
       } catch (err) {
@@ -52,11 +65,11 @@ export default function PriceHistoryScreen() {
         .from('fuel_history')
         .select('*')
         .eq('fuel_key', selectedFuel)
-        .order('month', { ascending: true })
-        .limit(12);
+        .order('month', { ascending: false })
+        .limit(24);
 
       if (fetchError) throw fetchError;
-      setHistory(data || []);
+      setHistory(lastTwelveMonths(data || []));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
@@ -126,8 +139,10 @@ export default function PriceHistoryScreen() {
           contentContainerStyle={styles.fuelSelector}
         >
           {FUEL_TYPES.map((fuel) => (
-            <View
+            <Pressable
               key={fuel.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedFuel === fuel.key }}
               style={[
                 styles.fuelTab,
                 {
@@ -135,7 +150,7 @@ export default function PriceHistoryScreen() {
                   borderColor: selectedFuel === fuel.key ? colors.primary : colors.border,
                 },
               ]}
-              onTouchEnd={() => setSelectedFuel(fuel.key)}
+              onPress={() => setSelectedFuel(fuel.key)}
             >
               <View style={[styles.fuelDot, { backgroundColor: fuel.color }]} />
               <Text
@@ -146,7 +161,7 @@ export default function PriceHistoryScreen() {
               >
                 {fuel.name}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
 
@@ -161,14 +176,17 @@ export default function PriceHistoryScreen() {
             </View>
 
             <View style={[styles.yearChange, { backgroundColor: yearChange >= 0 ? colors.errorLight : colors.successLight }]}>
-              <TrendingUp size={18} color={yearChange >= 0 ? colors.error : colors.success} />
+              {yearChange >= 0
+                ? <TrendingUp size={18} color={colors.error} />
+                : <TrendingDown size={18} color={colors.success} />}
               <Text
                 style={[
                   styles.yearChangeText,
                   { color: yearChange >= 0 ? colors.error : colors.success },
                 ]}
               >
-                {yearChange >= 0 ? '+' : ''}{yearChangePercent.toFixed(1)}% from 12 mo ago
+                {yearChange >= 0 ? '+' : ''}{yearChangePercent.toFixed(1)}% since{' '}
+                {monthDate(history[0].month).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' })}
               </Text>
             </View>
           </View>
@@ -177,7 +195,7 @@ export default function PriceHistoryScreen() {
         {/* Simple Bar Chart */}
         <Card style={styles.chartCard}>
           <Text style={[styles.chartTitle, { color: colors.text }]}>
-            12-Month Price Trend
+            12-Month Price Trend (Gauteng Inland)
           </Text>
 
           <View style={styles.chart}>
@@ -186,7 +204,7 @@ export default function PriceHistoryScreen() {
               const isCurrent = i === history.length - 1;
 
               return (
-                <View key={h.id} style={styles.barColumn}>
+                <View key={h.month} style={styles.barColumn}>
                   <View style={styles.barContainer}>
                     <View
                       style={[
@@ -202,7 +220,7 @@ export default function PriceHistoryScreen() {
                     {isCurrent && <View style={[styles.currentDot, { backgroundColor: currentFuel.color }]} />}
                   </View>
                   <Text style={[styles.barLabel, { color: colors.textTertiary }]}>
-                    {new Date(h.month).toLocaleDateString('en-ZA', { month: 'short' })}
+                    {monthDate(h.month).toLocaleDateString('en-ZA', { month: 'short' })}
                   </Text>
                 </View>
               );
@@ -237,11 +255,11 @@ export default function PriceHistoryScreen() {
             .reverse()
             .map((h) => (
               <View
-                key={h.id}
+                key={h.month}
                 style={[styles.tableRow, { borderBottomColor: colors.border }]}
               >
                 <Text style={[styles.tableCell, { color: colors.text }]}>
-                  {new Date(h.month).toLocaleDateString('en-ZA', {
+                  {monthDate(h.month).toLocaleDateString('en-ZA', {
                     month: 'long',
                     year: 'numeric',
                   })}
