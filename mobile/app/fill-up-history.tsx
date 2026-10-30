@@ -66,7 +66,9 @@ export default function FillUpHistoryScreen() {
           .from('user_vehicles')
           .select('*, vehicle:vehicles(*)')
           .eq('user_id', user.id)
-          .eq('is_default', true)
+          .order('is_default', { ascending: false })
+          .order('created_at', { ascending: true })
+          .limit(1)
           .maybeSingle();
         vehicleId = defaultVehicle?.id;
         setVehicle(defaultVehicle as UserVehicleWithVehicle);

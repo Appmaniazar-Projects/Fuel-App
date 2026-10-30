@@ -10,6 +10,7 @@ import {
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Car, Plus, Star, Trash2, LogIn, LogOut } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
+import { confirmAction, showError } from '@/lib/confirm';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -72,36 +73,37 @@ export default function GarageScreen() {
   }, [fetchVehicles]);
 
   const setAsDefault = async (vehicleId: string) => {
-    try {
-      // First, remove default from all vehicles
-      await supabase
-        .from('user_vehicles')
-        .update({ is_default: false })
-        .eq('user_id', user!.id);
-
-      // Then set the selected one as default
-      await supabase
-        .from('user_vehicles')
-        .update({ is_default: true })
-        .eq('id', vehicleId);
-
-      fetchVehicles();
-    } catch (err) {
-      console.error('Failed to set default:', err);
-    }
+    if (!user) return;
+    const { error: clearError } = await supabase
+      .from('user_vehicles')
+      .update({ is_default: false })
+      .eq('user_id', user.id);
+    const { error: defaultError } = clearError
+      ? { error: clearError }
+      : await supabase.from('user_vehicles').update({ is_default: true }).eq('id', vehicleId);
+    if (defaultError) showError(defaultError.message || 'Could not set the default vehicle.');
+    fetchVehicles();
   };
 
-  const deleteVehicle = async (vehicleId: string) => {
-    try {
-      await supabase
-        .from('user_vehicles')
-        .delete()
-        .eq('id', vehicleId);
+  const deleteVehicle = async (uv: UserVehicleWithVehicle) => {
+    const confirmed = await confirmAction(
+      `Delete ${uv.nickname}?`,
+      'This also permanently deletes every fill-up logged for this vehicle.'
+    );
+    if (!confirmed) return;
 
-      fetchVehicles();
-    } catch (err) {
-      console.error('Failed to delete vehicle:', err);
+    const { error: deleteError } = await supabase.from('user_vehicles').delete().eq('id', uv.id);
+    if (deleteError) {
+      showError(deleteError.message || 'Could not delete the vehicle.');
+      return;
     }
+
+    // Keep a default vehicle if the default one was removed
+    const remaining = vehicles.filter((v) => v.id !== uv.id);
+    if (uv.is_default && remaining.length > 0) {
+      await supabase.from('user_vehicles').update({ is_default: true }).eq('id', remaining[0].id);
+    }
+    fetchVehicles();
   };
 
   if (loading) {
@@ -209,7 +211,7 @@ export default function GarageScreen() {
                   )}
                   <Pressable
                     style={styles.actionButton}
-                    onPress={() => deleteVehicle(uv.id)}
+                    onPress={() => deleteVehicle(uv)}
                   >
                     <Trash2 size={18} color={colors.error} />
                   </Pressable>

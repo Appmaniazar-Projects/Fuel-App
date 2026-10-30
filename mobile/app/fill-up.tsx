@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { X, ChevronDown, ChevronUp, Droplet, Gauge, Calculator } from 'lucide-react-native';
+import { X, ChevronDown, ChevronUp, Droplet, Gauge, Calculator, Car } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/Card';
@@ -19,6 +19,7 @@ import { Button } from '@/components/Button';
 import { BenchmarkBadge } from '@/components/BenchmarkBadge';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
+import { EmptyState } from '@/components/EmptyState';
 import {
   useColors,
   Spacing,
@@ -173,6 +174,14 @@ export default function FillUpScreen() {
       setError('Please fill in all required fields');
       return;
     }
+    if (!pricePerLitre) {
+      setError('There is no current price for this fuel yet, so the cost can\'t be calculated.');
+      return;
+    }
+    if (odometerNum > 0 && lastOdometer && odometerNum <= lastOdometer) {
+      setError(`Odometer must be higher than your last reading (${lastOdometer.toLocaleString('en-ZA')} km).`);
+      return;
+    }
 
     try {
       setSaving(true);
@@ -212,6 +221,20 @@ export default function FillUpScreen() {
 
   if (loading) {
     return <LoadingState message="Loading..." />;
+  }
+
+  if (!error && !activeVehicle) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center' }]}>
+        <EmptyState
+          icon={<Car size={48} color={colors.textTertiary} />}
+          title="Add a vehicle first"
+          message="Fill-ups are logged against a vehicle in your garage."
+          actionLabel="Add Vehicle"
+          onAction={() => router.replace('/add-vehicle')}
+        />
+      </View>
+    );
   }
 
   if (error && !activeVehicle) {

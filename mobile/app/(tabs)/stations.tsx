@@ -50,30 +50,6 @@ interface Station {
   rating: number | null;
 }
 
-function getMockStations(lat: number, lng: number): Station[] {
-  // Mock stations for demo when Edge Function not deployed
-  const mocks: { name: string; brand: string; offset: [number, number] }[] = [
-    { name: 'Engen Sandton', brand: 'engen', offset: [0.002, 0.003] },
-    { name: 'BP Rosebank', brand: 'bp', offset: [-0.003, 0.002] },
-    { name: 'Shell Hyde Park', brand: 'shell', offset: [0.001, -0.002] },
-    { name: 'Sasol Dunkeld', brand: 'sasol', offset: [-0.002, -0.001] },
-    { name: 'Caltex Parktown', brand: 'caltex', offset: [0.003, 0.001] },
-    { name: 'Engen Rosebank', brand: 'engen', offset: [-0.001, 0.004] },
-  ];
-
-  return mocks.map((m, i) => ({
-    id: `mock-${i}`,
-    name: m.name,
-    brand: m.brand,
-    latitude: lat + m.offset[1] * 0.1,
-    longitude: lng + m.offset[0] * 0.1,
-    address: `${i + 100} Main Street, Johannesburg`,
-    distance: Math.round(500 + Math.random() * 2000),
-    open_now: Math.random() > 0.2,
-    rating: 3.5 + Math.random() * 1.5,
-  }));
-}
-
 export default function StationsScreen() {
   const colors = useColors();
   const [stations, setStations] = useState<Station[]>([]);
@@ -115,11 +91,14 @@ export default function StationsScreen() {
         body: { latitude, longitude, radius: 5000 },
       });
 
-      if (!nearbyError && nearbyData?.stations) {
-        setStations(nearbyData.stations);
-      } else {
-        setStations(getMockStations(latitude, longitude));
+      if (nearbyError || !nearbyData?.stations) {
+        // Never show made-up stations: say what went wrong instead.
+        throw new Error(
+          nearbyData?.error ||
+            'Nearby stations are unavailable right now. Check that the nearby-stations function is deployed with a Google Places API key.'
+        );
       }
+      setStations(nearbyData.stations);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load stations');
     } finally {

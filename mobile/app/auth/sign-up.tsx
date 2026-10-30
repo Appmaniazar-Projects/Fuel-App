@@ -25,6 +25,7 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const handleSignUp = async () => {
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
@@ -54,10 +55,12 @@ export default function SignUpScreen() {
       } else {
         setError(result.error.message);
       }
-    } else {
-      // Success - navigation to sign-in will be handled by AuthGuard
+    } else if (result.needsConfirmation) {
       setLoading(false);
-      router.replace('/auth/sign-in');
+      setNotice(`We've sent a confirmation link to ${email.trim()}. Open it, then sign in.`);
+    } else {
+      // Signed in straight away: AuthGuard redirects to the home screen
+      setLoading(false);
     }
   };
 
@@ -113,6 +116,12 @@ export default function SignUpScreen() {
           {error && (
             <View style={[styles.errorBox, { backgroundColor: colors.errorLight }]}>
               <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+            </View>
+          )}
+
+          {notice && (
+            <View style={[styles.errorBox, { backgroundColor: colors.successLight }]}>
+              <Text style={[styles.errorText, { color: colors.success }]}>{notice}</Text>
             </View>
           )}
 

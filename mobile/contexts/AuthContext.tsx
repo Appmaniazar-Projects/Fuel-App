@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -56,11 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: { message: 'Supabase is not configured' } as AuthError };
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
-    return { error };
+    // With email confirmation on, Supabase creates the user but no session.
+    return { error, needsConfirmation: !error && !data.session };
   };
 
   const signOut = async () => {

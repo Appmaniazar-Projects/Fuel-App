@@ -94,8 +94,16 @@ export default function AddVehicleScreen() {
       setSaving(true);
       setError(null);
 
+      // The first vehicle is always the default, so screens that rely on a
+      // default vehicle (history, fill-up) always have one.
+      const { count } = await supabase
+        .from('user_vehicles')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      const makeDefault = setAsDefault || !count;
+
       // If setting as default, remove default from others
-      if (setAsDefault) {
+      if (makeDefault) {
         await supabase
           .from('user_vehicles')
           .update({ is_default: false })
@@ -107,7 +115,7 @@ export default function AddVehicleScreen() {
         vehicle_id: selectedVehicle.id,
         nickname: nickname.trim(),
         selected_fuel_key: preferredFuel,
-        is_default: setAsDefault,
+        is_default: makeDefault,
       });
 
       if (insertError) throw insertError;

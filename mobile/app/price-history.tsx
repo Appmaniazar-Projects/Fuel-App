@@ -79,6 +79,15 @@ export default function PriceHistoryScreen() {
     return <ErrorState message={error} onRetry={fetchData} />;
   }
 
+  if (history.length === 0) {
+    return (
+      <ErrorState
+        message="No price history yet for this fuel. History builds up each month as prices are updated."
+        onRetry={fetchData}
+      />
+    );
+  }
+
   // Calculate chart values
   const prices = history.map((h) => h.price_cents);
   const minPrice = Math.min(...prices);

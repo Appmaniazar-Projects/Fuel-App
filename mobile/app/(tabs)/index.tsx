@@ -86,7 +86,7 @@ export default function HomeScreen() {
           const { data: fillUps, error: fillUpsError } = await supabase
             .from('fill_ups')
             .select('*, user_vehicle:user_vehicles(*, vehicle:vehicles(*))')
-            .eq('user_id', user.id)
+            .eq('user_vehicle_id', userVehicles[0].id)
             .order('logged_at', { ascending: false })
             .limit(2);
 
@@ -99,12 +99,12 @@ export default function HomeScreen() {
             const prev = fillUps[1];
             if (current.odometer_km && prev.odometer_km && current.litres > 0) {
               const distance = current.odometer_km - prev.odometer_km;
-              if (distance > 0 && userVehicles[0].vehicle?.official_km_per_l) {
+              if (distance > 0) {
                 lastKmPerL = distance / current.litres;
-                benchmarkInfo = calculateBenchmarkDelta(
-                  lastKmPerL,
-                  userVehicles[0].vehicle.official_km_per_l
-                );
+                const spec = userVehicles[0].vehicle?.official_km_per_l;
+                if (spec) {
+                  benchmarkInfo = calculateBenchmarkDelta(lastKmPerL, spec);
+                }
               }
             }
           }
