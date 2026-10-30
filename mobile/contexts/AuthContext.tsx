@@ -19,11 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-
+    // lib/supabase always exports a client, so no null check is needed here.
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);

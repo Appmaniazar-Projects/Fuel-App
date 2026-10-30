@@ -43,26 +43,21 @@ export default function AddVehicleScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadVehicles();
+    supabase
+      .from('vehicles')
+      .select('*')
+      .order('make')
+      .order('model')
+      .then(({ data, error: loadError }) => {
+        if (loadError) {
+          setError(loadError.message || 'Failed to load vehicles');
+        } else {
+          setAllVehicles(data || []);
+          setVehicles(data || []);
+        }
+        setLoading(false);
+      });
   }, []);
-
-  const loadVehicles = async () => {
-    try {
-      const { data, error: loadError } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('make')
-        .order('model');
-
-      if (loadError) throw loadError;
-      setAllVehicles(data || []);
-      setVehicles(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load vehicles');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);

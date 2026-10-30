@@ -39,6 +39,47 @@ const FUEL_TYPES = [
   { key: 'diesel_500ppm', name: 'Diesel 500ppm', diesel: true },
 ];
 
+interface FillUpScreenData {
+  vehicles: UserVehicleWithVehicle[];
+  prices: FuelPrice | null;
+  lastFillUp: FillUp | null;
+}
+
+// Loads everything the fill-up screen needs. Kept outside the component so
+// state is only set once the data arrives (see applyData).
+async function fetchFillUpData(userId: string): Promise<FillUpScreenData> {
+  const { data: vehicleData, error: vehicleError } = await supabase
+    .from('user_vehicles')
+    .select('*, vehicle:vehicles(*)')
+    .eq('user_id', userId)
+    .order('is_default', { ascending: false });
+  if (vehicleError) throw vehicleError;
+  const vehicles = (vehicleData || []) as UserVehicleWithVehicle[];
+
+  // Fuel prices (Gauteng Inland default)
+  const { data: prices, error: pricesError } = await supabase
+    .from('fuel_prices')
+    .select('*')
+    .eq('region', 'Gauteng Inland')
+    .eq('is_current', true)
+    .maybeSingle();
+  if (pricesError) throw pricesError;
+
+  // Last fill-up for the default vehicle, for the odometer hint
+  let lastFillUp: FillUp | null = null;
+  if (vehicles[0]) {
+    const { data: lastData, error: lastError } = await supabase
+      .from('fill_ups')
+      .select('*')
+      .eq('user_vehicle_id', vehicles[0].id)
+      .order('logged_at', { ascending: false })
+      .limit(1);
+    if (!lastError && lastData?.[0]) lastFillUp = lastData[0] as FillUp;
+  }
+
+  return { vehicles, prices, lastFillUp };
+}
+
 export default function FillUpScreen() {
   const colors = useColors();
   const { user } = useAuth();
@@ -64,72 +105,44 @@ export default function FillUpScreen() {
   const [stationName, setStationName] = useState('');
   const [notes, setNotes] = useState('');
 
+  const applyData = (d: FillUpScreenData) => {
+    setVehicles(d.vehicles);
+    const defaultVehicle = d.vehicles[0];
+    setActiveVehicle(defaultVehicle || null);
+
+    // Set selected fuel based on vehicle preference
+    if (defaultVehicle?.selected_fuel_key) {
+      setSelectedFuel(defaultVehicle.selected_fuel_key);
+    } else if (defaultVehicle?.vehicle?.fuel_type === 'diesel') {
+      setSelectedFuel('diesel_50ppm');
+    } else {
+      setSelectedFuel('unleaded_95');
+    }
+
+    setFuelPrices(d.prices);
+    if (d.lastFillUp) {
+      setLastOdometer(d.lastFillUp.odometer_km);
+      setLastFillUp(d.lastFillUp);
+    }
+  };
+
+  const loadData = () => {
+    if (!user) return;
+    fetchFillUpData(user.id)
+      .then(applyData)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const loadData = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Get user's vehicles
-      const { data: vehicleData, error: vehicleError } = await supabase
-        .from('user_vehicles')
-        .select('*, vehicle:vehicles(*)')
-        .eq('user_id', user.id)
-        .order('is_default', { ascending: false });
-
-      if (vehicleError) throw vehicleError;
-
-      const vehiclesList = vehicleData as UserVehicleWithVehicle[];
-      setVehicles(vehiclesList);
-
-      // Get default/first vehicle
-      const defaultVehicle = vehiclesList[0];
-      setActiveVehicle(defaultVehicle || null);
-
-      // Set selected fuel based on vehicle preference
-      if (defaultVehicle?.selected_fuel_key) {
-        setSelectedFuel(defaultVehicle.selected_fuel_key);
-      } else if (defaultVehicle?.vehicle?.fuel_type === 'diesel') {
-        setSelectedFuel('diesel_50ppm');
-      } else {
-        setSelectedFuel('unleaded_95');
-      }
-
-      // Get fuel prices (Gauteng Inland default)
-      const { data: pricesData, error: pricesError } = await supabase
-        .from('fuel_prices')
-        .select('*')
-        .eq('region', 'Gauteng Inland')
-        .eq('is_current', true)
-        .maybeSingle();
-
-      if (pricesError) throw pricesError;
-      setFuelPrices(pricesData);
-
-      // Get last fill-up for this vehicle to show odometer hint
-      if (defaultVehicle) {
-        const { data: lastFillUpData, error: lastError } = await supabase
-          .from('fill_ups')
-          .select('*')
-          .eq('user_vehicle_id', defaultVehicle.id)
-          .order('logged_at', { ascending: false })
-          .limit(1);
-
-        if (!lastError && lastFillUpData?.[0]) {
-          setLastOdometer(lastFillUpData[0].odometer_km);
-          setLastFillUp(lastFillUpData[0]);
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
-    } finally {
-      setLoading(false);
-    }
+  const retry = () => {
+    setLoading(true);
+    setError(null);
+    loadData();
   };
 
   // Calculate live values
@@ -205,7 +218,7 @@ export default function FillUpScreen() {
     return (
       <ErrorState
         message={error || 'No vehicle found. Add a vehicle first.'}
-        onRetry={loadData}
+        onRetry={retry}
       />
     );
   }

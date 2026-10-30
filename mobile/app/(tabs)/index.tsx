@@ -179,7 +179,7 @@ export default function HomeScreen() {
                 Track Your Fill-ups
               </Text>
               <Text style={[styles.authPromptMessage, { color: colors.textSecondary }]}>
-                Sign in to log fill-ups, track consumption, and compare against your vehicle's spec
+                Sign in to log fill-ups, track consumption, and compare against your vehicle&apos;s spec
               </Text>
             </View>
           </View>
@@ -216,7 +216,7 @@ export default function HomeScreen() {
           <View style={styles.cardHeaderLeft}>
             <Fuel size={20} color={colors.primary} />
             <Text style={[styles.cardTitle, { color: colors.text }]}>
-              Today's Fuel Prices
+              Today&apos;s Fuel Prices
             </Text>
           </View>
           <Pressable onPress={() => router.push('/prices')}>

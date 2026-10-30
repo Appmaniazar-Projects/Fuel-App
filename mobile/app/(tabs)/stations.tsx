@@ -50,6 +50,30 @@ interface Station {
   rating: number | null;
 }
 
+function getMockStations(lat: number, lng: number): Station[] {
+  // Mock stations for demo when Edge Function not deployed
+  const mocks: { name: string; brand: string; offset: [number, number] }[] = [
+    { name: 'Engen Sandton', brand: 'engen', offset: [0.002, 0.003] },
+    { name: 'BP Rosebank', brand: 'bp', offset: [-0.003, 0.002] },
+    { name: 'Shell Hyde Park', brand: 'shell', offset: [0.001, -0.002] },
+    { name: 'Sasol Dunkeld', brand: 'sasol', offset: [-0.002, -0.001] },
+    { name: 'Caltex Parktown', brand: 'caltex', offset: [0.003, 0.001] },
+    { name: 'Engen Rosebank', brand: 'engen', offset: [-0.001, 0.004] },
+  ];
+
+  return mocks.map((m, i) => ({
+    id: `mock-${i}`,
+    name: m.name,
+    brand: m.brand,
+    latitude: lat + m.offset[1] * 0.1,
+    longitude: lng + m.offset[0] * 0.1,
+    address: `${i + 100} Main Street, Johannesburg`,
+    distance: Math.round(500 + Math.random() * 2000),
+    open_now: Math.random() > 0.2,
+    rating: 3.5 + Math.random() * 1.5,
+  }));
+}
+
 export default function StationsScreen() {
   const colors = useColors();
   const [stations, setStations] = useState<Station[]>([]);
@@ -114,30 +138,6 @@ export default function StationsScreen() {
     setRefreshing(true);
     fetchStations();
   }, [fetchStations]);
-
-  const getMockStations = (lat: number, lng: number): Station[] => {
-    // Mock stations for demo when Edge Function not deployed
-    const mocks: { name: string; brand: string; offset: [number, number] }[] = [
-      { name: 'Engen Sandton', brand: 'engen', offset: [0.002, 0.003] },
-      { name: 'BP Rosebank', brand: 'bp', offset: [-0.003, 0.002] },
-      { name: 'Shell Hyde Park', brand: 'shell', offset: [0.001, -0.002] },
-      { name: 'Sasol Dunkeld', brand: 'sasol', offset: [-0.002, -0.001] },
-      { name: 'Caltex Parktown', brand: 'caltex', offset: [0.003, 0.001] },
-      { name: 'Engen Rosebank', brand: 'engen', offset: [-0.001, 0.004] },
-    ];
-
-    return mocks.map((m, i) => ({
-      id: `mock-${i}`,
-      name: m.name,
-      brand: m.brand,
-      latitude: lat + m.offset[1] * 0.1,
-      longitude: lng + m.offset[0] * 0.1,
-      address: `${i + 100} Main Street, Johannesburg`,
-      distance: Math.round(500 + Math.random() * 2000),
-      open_now: Math.random() > 0.2,
-      rating: 3.5 + Math.random() * 1.5,
-    }));
-  };
 
   const getBrandColor = (brand: string): string => {
     const b = brand.toLowerCase();

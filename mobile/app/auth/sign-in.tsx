@@ -107,7 +107,7 @@ export default function SignInScreen() {
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
           </Text>
           <Pressable onPress={() => router.push('/auth/sign-up')}>
             <Text style={[styles.link, { color: colors.primary }]}>Sign Up</Text>
