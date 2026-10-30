@@ -81,12 +81,12 @@ function firstSuccess<T>(promises: Promise<T>[]): Promise<T> {
 }
 
 // Ask every mirror at once and use whichever answers first; give up on a
-// mirror after 8 seconds so a slow one can't hold the screen up.
+// mirror after 30 seconds so a dead one can't hold the screen up.
 async function queryOverpass(lat: number, lng: number, radius: number): Promise<OsmElement[]> {
-  const query = `[out:json][timeout:10];nwr["amenity"="fuel"](around:${radius},${lat},${lng});out center tags;`;
+  const query = `[out:json][timeout:25];nwr["amenity"="fuel"](around:${radius},${lat},${lng});out center tags;`;
   const controllers = OVERPASS_URLS.map(() => new AbortController());
   const attempts = OVERPASS_URLS.map(async (base, i) => {
-    const timer = setTimeout(() => controllers[i].abort(), 8000);
+    const timer = setTimeout(() => controllers[i].abort(), 30000);
     try {
       const res = await fetch(`${base}?data=${encodeURIComponent(query)}`, { signal: controllers[i].signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
