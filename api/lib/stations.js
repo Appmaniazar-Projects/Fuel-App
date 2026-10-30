@@ -5,6 +5,10 @@
  */
 
 const axios = require("axios");
+const https = require("https");
+
+// IPv4 only: some networks stall on IPv6 connections (ETIMEDOUT).
+const httpsAgent = new https.Agent({ family: 4, keepAlive: true });
 const { supabase } = require("./supabase");
 
 const OVERPASS_URLS = [
@@ -83,6 +87,7 @@ async function fetchTile([south, west, north, east]) {
     try {
       const { data } = await axios.post(url, `data=${encodeURIComponent(query)}`, {
         timeout: 120000,
+        httpsAgent,
         headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "FuelWise/1.0 (station import)" },
       });
       return { elements: data.elements || [] };
@@ -93,45 +98,63 @@ async function fetchTile([south, west, north, east]) {
   return { elements: [], errors };
 }
 
-async function fetchAllSaStations() {
-  const byId = new Map();
-  const failedAreas = [];
-  for (const tile of saTiles()) {
-    const { elements, errors } = await fetchTile(tile);
-    if (errors) {
-      failedAreas.push({ area: tile, errors });
-      console.warn(`[stations] area ${tile.join(",")} failed: ${errors.join(" | ")}`);
-      continue;
-    }
-    for (const el of elements) {
-      const row = toRow(el);
-      if (row) byId.set(row.id, row);
-    }
-    console.log(`[stations] area ${tile.join(",")}: ${elements.length} stations`);
+async function saveRows(rows) {
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await supabase.from("fuel_stations").upsert(rows.slice(i, i + 500), { onConflict: "id" });
+    if (error) throw error;
   }
-  return { rows: [...byId.values()], failedAreas };
 }
 
+function splitTile([s, w, n, e]) {
+  const midLat = +((s + n) / 2).toFixed(3), midLng = +((w + e) / 2).toFixed(3);
+  return [[s, w, midLat, midLng], [s, midLng, midLat, e], [midLat, w, n, midLng], [midLat, midLng, n, e]];
+}
+
+// Fetch one area and save it straight away, so progress survives a timeout.
+// Busy areas (e.g. Cape Town) that fail are split into four and retried.
+async function importTile(tile, depth, stats) {
+  const { elements, errors } = await fetchTile(tile);
+  if (errors) {
+    if (depth < 1) {
+      console.warn(`[stations] area ${tile.join(",")} failed, retrying as 4 smaller areas`);
+      for (const sub of splitTile(tile)) await importTile(sub, depth + 1, stats);
+      return;
+    }
+    stats.failedAreas.push({ area: tile, errors });
+    console.warn(`[stations] area ${tile.join(",")} failed: ${errors.join(" | ")}`);
+    return;
+  }
+  const rows = elements.map(toRow).filter(Boolean);
+  await saveRows(rows);
+  for (const r of rows) stats.brands[r.brand] = (stats.brands[r.brand] || 0) + 1;
+  stats.saved += rows.length;
+  console.log(`[stations] area ${tile.join(",")}: saved ${rows.length} (total ${stats.saved})`);
+}
+
+let running = null;
+
 async function importStations() {
-  const { rows, failedAreas } = await fetchAllSaStations();
-  if (rows.length === 0) {
-    const sample = failedAreas[0] ? failedAreas[0].errors.join(" | ") : "no stations returned";
-    throw new Error(`Could not reach any OpenStreetMap server (${sample})`);
+  // One import at a time: a second request waits for the running one
+  if (running) return running;
+  running = (async () => {
+    const stats = { saved: 0, brands: {}, failedAreas: [] };
+    for (const tile of saTiles()) await importTile(tile, 0, stats);
+    if (stats.saved === 0) {
+      const sample = stats.failedAreas[0] ? stats.failedAreas[0].errors.join(" | ") : "no stations returned";
+      throw new Error(`Could not reach any OpenStreetMap server (${sample})`);
+    }
+    return {
+      stations_saved: stats.saved,
+      brands: stats.brands,
+      areas_failed: stats.failedAreas.length,
+      note: stats.failedAreas.length ? "Some areas failed (servers busy); run the import again later to fill them in." : undefined,
+    };
+  })();
+  try {
+    return await running;
+  } finally {
+    running = null;
   }
-  let written = 0;
-  for (let i = 0; i < rows.length; i += 500) {
-    const batch = rows.slice(i, i + 500);
-    const { error } = await supabase.from("fuel_stations").upsert(batch, { onConflict: "id" });
-    if (error) throw error;
-    written += batch.length;
-  }
-  const brands = rows.reduce((acc, r) => ((acc[r.brand] = (acc[r.brand] || 0) + 1), acc), {});
-  return {
-    stations: written,
-    brands,
-    areas_failed: failedAreas.length,
-    note: failedAreas.length ? "Some areas failed; run the import again to fill them in." : undefined,
-  };
 }
 
 module.exports = { importStations, brandKey, toRow, saTiles, describe };

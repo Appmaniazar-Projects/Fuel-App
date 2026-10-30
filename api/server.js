@@ -32,9 +32,11 @@ for (const [path, handler] of Object.entries(routes)) {
 }
 
 if (require.main === module) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`FillUp API running locally on http://localhost:${PORT}/api`);
   });
+  // The station import can take several minutes; don't cut the request off.
+  server.requestTimeout = 0;
 }
 
 module.exports = app;
