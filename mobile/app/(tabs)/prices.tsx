@@ -25,6 +25,7 @@ import {
   formatPriceChange,
 } from '@/lib/theme';
 import type { FuelPrice } from '@/types/database';
+import { appKey, monthOf, previousMonthOf } from '@/lib/fuelKeys';
 
 
 // KZN Coastal intentionally omitted: the live scraper only distinguishes
@@ -106,21 +107,32 @@ export default function PricesScreen() {
       if (currentError) throw currentError;
       if (!current) throw new Error('No current prices found');
 
-      // Get previous month's prices from fuel_history
-      const lastMonth = new Date();
-      lastMonth.setMonth(lastMonth.getMonth() - 1);
-      const monthKey = lastMonth.toISOString().slice(0, 10).replace(/-\d\d$/, '-01');
-
+      // Month-on-month change from fuel_history. History holds Gauteng
+      // prices with months stored as 'YYYY-MM' and the diesels under their
+      // old names. Monthly adjustments are set nationally, so the Gauteng
+      // change applies to Coastal too: previous = current - change.
+      const thisMonth = monthOf(current.effective_date);
+      const lastMonth = previousMonthOf(thisMonth);
       const { data: history, error: historyError } = await supabase
         .from('fuel_history')
-        .select('*')
-        .eq('month', monthKey);
+        .select('month, fuel_key, price_cents')
+        .in('month', [thisMonth, lastMonth, `${thisMonth}-01`, `${lastMonth}-01`]);
 
       if (historyError) throw historyError;
 
-      const previousMonth: { [key: string]: number } = {};
+      const byMonth: Record<string, Record<string, number>> = { [thisMonth]: {}, [lastMonth]: {} };
       history?.forEach((h) => {
-        previousMonth[h.fuel_key] = h.price_cents;
+        byMonth[monthOf(h.month)][appKey(h.fuel_key)] = h.price_cents;
+      });
+
+      const previousMonth: { [key: string]: number } = {};
+      FUEL_DISPLAY.forEach(({ key }) => {
+        const now = byMonth[thisMonth][key];
+        const before = byMonth[lastMonth][key];
+        const currentPrice = (current as any)[key];
+        if (typeof now === 'number' && typeof before === 'number' && typeof currentPrice === 'number') {
+          previousMonth[key] = currentPrice - (now - before);
+        }
       });
 
       setData({ current, previousMonth });

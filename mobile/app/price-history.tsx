@@ -16,6 +16,7 @@ import {
   formatPriceChange,
 } from '@/lib/theme';
 import type { FuelHistory } from '@/types/database';
+import { historyKey } from '@/lib/fuelKeys';
 
 // Months are stored as 'YYYY-MM' (live DB) or 'YYYY-MM-01' (older rows).
 function monthDate(month: string): Date {
@@ -65,7 +66,8 @@ export default function PriceHistoryScreen() {
       const { data, error: fetchError } = await supabase
         .from('fuel_history')
         .select('*')
-        .eq('fuel_key', selectedFuel)
+        // fuel_history names the diesels diesel_ultra / diesel_low_sulphur
+        .eq('fuel_key', historyKey(selectedFuel))
         .order('month', { ascending: false })
         .limit(24);
 
