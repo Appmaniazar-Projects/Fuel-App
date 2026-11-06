@@ -58,12 +58,14 @@ export function buildStationsMapHtml(opts: {
   .me{width:16px;height:16px;border-radius:50%;background:#2563EB;border:3px solid #fff;box-shadow:0 0 0 6px rgba(37,99,235,.25)}
 </style></head><body><div id="map"></div><script>
   var map = L.map('map', { zoomControl: true }).setView([${opts.user.latitude}, ${opts.user.longitude}], 14);
-  // CARTO basemap tiles. tile.openstreetmap.org refuses requests without a
-  // Referer (403 "Access blocked"), which is what an embedded map sends.
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/${opts.dark ? 'dark_all' : 'voyager'}/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19, subdomains: 'abcd',
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-  }).addTo(map);
+  // Esri basemap tiles: free and need no API key. (CARTO now answers every
+  // tile with an "API key required" image, and tile.openstreetmap.org refuses
+  // embedded maps that send no Referer.)
+  var esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
+  var attribution = 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors';
+  ${opts.dark
+    ? "L.tileLayer(esri + 'Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: attribution }).addTo(map);\n  L.tileLayer(esri + 'Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 }).addTo(map);"
+    : "L.tileLayer(esri + 'World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: attribution }).addTo(map);"}
   L.marker([${opts.user.latitude}, ${opts.user.longitude}], {
     icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [16, 16] }), title: 'You'
   }).addTo(map);
